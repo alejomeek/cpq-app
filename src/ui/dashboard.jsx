@@ -240,7 +240,7 @@ const Dashboard = ({ db, navigate }) => {
                   <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
                     <FileText className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground">Creadas Estee Mes</span>
+                  <span className="text-sm font-medium text-muted-foreground">Creadas Este Mes</span>
                 </div>
                 {monthlyQuotesTrend && (
                   <div className={`flex items-center gap-1 text-sm font-medium ${monthlyQuotesTrend.isPositive ? 'text-green-600' : 'text-red-600'
