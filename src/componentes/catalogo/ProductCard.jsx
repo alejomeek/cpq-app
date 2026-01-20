@@ -55,7 +55,7 @@ const ProductCard = ({ product, onClick, onEdit, onDuplicate, onDelete }) => {
         <div className="relative h-48 w-full overflow-hidden bg-muted">
           <img 
             className="h-full w-full object-cover transition-transform group-hover:scale-110" 
-            src={product.imagenUrl || 'https://placehold.co/600x400/1e293b/94a3b8?text=Sin+Imagen'} 
+            src={product.imagen_url || 'https://placehold.co/600x400/1e293b/94a3b8?text=Sin+Imagen'} 
             alt={product.nombre || 'Producto'}
             onError={(e) => {
               e.target.src = 'https://placehold.co/600x400/1e293b/94a3b8?text=Sin+Imagen';
