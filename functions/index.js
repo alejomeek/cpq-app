@@ -1,13 +1,17 @@
 const { onCall, onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
-const { defineString } = require('firebase-functions/params');
+const { defineString, defineSecret } = require('firebase-functions/params');
 
 admin.initializeApp();
 
 // Definir parámetros (Cloud Functions v2)
 const resendApiKey = defineString('RESEND_API_KEY');
 const fromEmail = defineString('FROM_EMAIL', { default: 'cotizaciones@cepequ.com' });
+
+// Definir secrets de Wix
+const wixApiKey = defineSecret('WIX_API_KEY');
+const wixSiteId = defineSecret('WIX_SITE_ID');
 const fromName = defineString('FROM_NAME', { default: 'Cepequ CPQ' });
 
 /**
@@ -292,17 +296,22 @@ exports.sendQuoteEmail = onCall(async (request) => {
  */
 async function fetchAllWixProducts(apiKey, siteId) {
   let allProducts = [];
-  let cursor = null;
+  let offset = 0;
+  const limit = 100;
+  let totalResults = 0;
 
   do {
     const body = {
+      includeHiddenProducts: true,
       query: {
         paging: {
-          limit: 100,
-          ...(cursor && { cursor })
+          limit: limit,
+          offset: offset
         }
       }
     };
+
+    console.log(`📦 Fetching products: offset=${offset}, limit=${limit}`);
 
     const response = await fetch('https://www.wixapis.com/stores/v1/products/query', {
       method: 'POST',
@@ -319,27 +328,67 @@ async function fetchAllWixProducts(apiKey, siteId) {
     }
 
     const data = await response.json();
+    const items = data.products || [];
+    totalResults = data.totalResults || 0;
 
-    const formattedProducts = data.products.map(p => ({
-      sku: p.sku,
-      nombre: p.name,
-      descripcion: p.description || '',
-      precio_iva_incluido: p.priceData?.price || 0,
-      precioBase: p.priceData?.price || 0,
-      imagen_url: p.media?.mainMedia?.image?.url || '',
-      inventory: p.stock?.quantity || 0,
-      categoria: p.productType || 'General'
-    }));
+    console.log(`✅ Received ${items.length} products. Total in Wix: ${totalResults}`);
+
+    if (items.length === 0) {
+      break;
+    }
+
+    const formattedProducts = items.map(p => {
+      // Obtener precio
+      const price = p.price?.price || p.priceData?.price || 0;
+
+      // Obtener inventario
+      const stockInfo = p.stock || {};
+      let inventory = stockInfo.quantity || 0;
+      // Si no tiene tracking pero está "in stock", asumir stock alto
+      if (inventory === null && stockInfo.inStock) {
+        inventory = 999;
+      }
+
+      // Obtener imagen
+      let imageUrl = 'https://placehold.co/100x100/EEE/333?text=S/I';
+      const media = p.media || {};
+      if (media.mainMedia?.image?.url) {
+        imageUrl = media.mainMedia.image.url;
+      }
+
+      return {
+        sku: String(p.sku || ''),
+        nombre: p.name || 'Sin Nombre',
+        descripcion: p.description || '',
+        precio_iva_incluido: parseFloat(price) || 0,
+        precioBase: parseFloat(price) || 0,
+        imagen_url: imageUrl,
+        inventory: parseInt(inventory) || 0,
+        categoria: p.productType || 'General'
+      };
+    });
 
     allProducts = [...allProducts, ...formattedProducts];
-    cursor = data.metadata?.cursors?.next;
 
-  } while (cursor);
+    console.log(`📊 Progress: ${allProducts.length} / ${totalResults} products`);
 
+    // Si recibimos menos productos que el límite, ya no hay más
+    if (items.length < limit) {
+      break;
+    }
+
+    offset += limit;
+
+  } while (offset < totalResults || totalResults === 0);
+
+  console.log(`🎉 Total products fetched: ${allProducts.length}`);
   return allProducts;
 }
 
-exports.syncWixProducts = onRequest({ cors: true }, async (req, res) => {
+exports.syncWixProducts = onRequest({
+  cors: true,
+  secrets: [wixApiKey, wixSiteId]
+}, async (req, res) => {
   console.log('🔄 Iniciando sincronización de productos Wix...');
 
   if (req.method !== 'POST') {
@@ -348,11 +397,19 @@ exports.syncWixProducts = onRequest({ cors: true }, async (req, res) => {
   }
 
   try {
-    const { apiKey, siteId, userId } = req.body;
+    const { userId } = req.body;
 
-    if (!apiKey || !siteId || !userId) {
-      res.status(400).json({ error: 'Missing required fields' });
+    if (!userId) {
+      res.status(400).json({ error: 'Missing userId' });
       return;
+    }
+
+    // Credenciales desde Firebase Secrets
+    const apiKey = wixApiKey.value();
+    const siteId = wixSiteId.value();
+
+    if (!apiKey || !siteId) {
+      throw new Error('Wix credentials not configured');
     }
 
     console.log(`📦 Obteniendo productos de Wix para usuario: ${userId}`);
@@ -361,32 +418,50 @@ exports.syncWixProducts = onRequest({ cors: true }, async (req, res) => {
     const products = await fetchAllWixProducts(apiKey, siteId);
 
     console.log(`✅ Obtenidos ${products.length} productos de Wix`);
-    console.log('💾 Guardando en Firestore...');
 
-    // Guardar en Firestore
+    // Filtrar productos sin SKU válido
+    const validProducts = products.filter(p => p.sku && p.sku.trim() !== '');
+    const invalidCount = products.length - validProducts.length;
+
+    if (invalidCount > 0) {
+      console.log(`⚠️ Excluidos ${invalidCount} productos sin SKU válido`);
+    }
+
+    console.log(`💾 Guardando ${validProducts.length} productos en Firestore...`);
+
+    // Guardar en Firestore con batches de 500 (límite de Firestore)
     const db = admin.firestore();
-    const batch = db.batch();
     const productsRef = db.collection(`usuarios/${userId}/productos`);
+    const BATCH_SIZE = 500;
+    let processedCount = 0;
 
+    // Procesar en lotes de 500
+    for (let i = 0; i < validProducts.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = validProducts.slice(i, i + BATCH_SIZE);
 
+      chunk.forEach(product => {
+        const docRef = productsRef.doc(product.sku);
+        batch.set(docRef, {
+          ...product,
+          lastSync: new Date(),
+          fechaActualizacion: new Date()
+        }, { merge: true });
+      });
 
-    products.forEach(product => {
-      const docRef = productsRef.doc(product.sku);
-      batch.set(docRef, {
-        ...product,
-        lastSync: new Date(),
-        fechaActualizacion: new Date()
-      }, { merge: true });
-    });
+      await batch.commit();
+      processedCount += chunk.length;
+      console.log(`💾 Guardados ${processedCount} / ${validProducts.length} productos`);
+    }
 
-    // Guardar timestamp
+    // Guardar timestamp en batch separado
+    const syncBatch = db.batch();
     const syncRef = db.doc(`usuarios/${userId}/settings/wix_sync`);
-    batch.set(syncRef, {
+    syncBatch.set(syncRef, {
       lastSync: new Date(),
-      productsCount: products.length
+      productsCount: validProducts.length
     });
-
-    await batch.commit();
+    await syncBatch.commit();
 
     console.log('✅ Sincronización completada exitosamente');
 

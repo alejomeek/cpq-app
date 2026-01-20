@@ -2,11 +2,9 @@
  * Sincroniza productos de Wix a Firestore usando Firebase HTTP Cloud Function
  * @param {Object} db - Instancia de Firestore (no se usa, la Cloud Function maneja Firestore)
  * @param {string} userId - ID del usuario
- * @param {string} apiKey - API Key de Wix
- * @param {string} siteId - Site ID de Wix
  * @returns {Promise<Object>} Resultado de la sincronización
  */
-export async function syncWixToFirestore(db, userId, apiKey, siteId) {
+export async function syncWixToFirestore(db, userId) {
   try {
     // Detectar si estamos en desarrollo o producción
     const isDev = import.meta.env.DEV;
@@ -23,7 +21,7 @@ export async function syncWixToFirestore(db, userId, apiKey, siteId) {
     const response = await fetch(functionUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, siteId, userId })
+      body: JSON.stringify({ userId })
     });
 
     if (!response.ok) {
