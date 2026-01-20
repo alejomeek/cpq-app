@@ -1,4 +1,4 @@
-const { onCall } = require('firebase-functions/v2/https');
+const { onCall, onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
 const { defineString } = require('firebase-functions/params');
@@ -15,7 +15,7 @@ const fromName = defineString('FROM_NAME', { default: 'Cepequ CPQ' });
  */
 exports.sendQuoteEmail = onCall(async (request) => {
   console.log('📧 Iniciando envío de email con Resend...');
-  
+
   // 1. Validar autenticación
   if (!request.auth) {
     console.error('❌ Usuario no autenticado');
@@ -25,16 +25,16 @@ exports.sendQuoteEmail = onCall(async (request) => {
   console.log(`✅ Usuario autenticado: ${request.auth.uid}`);
 
   // 2. Obtener datos
-  const { 
-    quoteId, 
-    quoteNumber, 
-    clientEmail, 
+  const {
+    quoteId,
+    quoteNumber,
+    clientEmail,
     clientName,
     userEmail,
     userName,
-    total, 
+    total,
     vencimiento,
-    pdfBase64 
+    pdfBase64
   } = request.data;
 
   // 3. Validar datos requeridos
@@ -63,21 +63,21 @@ exports.sendQuoteEmail = onCall(async (request) => {
 
   try {
     // 5. Formatear fechas
-    const fechaVencimiento = vencimiento 
-      ? new Date(vencimiento).toLocaleDateString('es-CO', { 
-          day: 'numeric', 
-          month: 'long', 
-          year: 'numeric' 
-        })
+    const fechaVencimiento = vencimiento
+      ? new Date(vencimiento).toLocaleDateString('es-CO', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
       : 'No especificado';
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
+    const fechaActual = new Date().toLocaleDateString('es-CO', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     });
 
-    const totalFormateado = parseFloat(total || 0).toLocaleString('es-CO', { 
+    const totalFormateado = parseFloat(total || 0).toLocaleString('es-CO', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
@@ -239,7 +239,7 @@ exports.sendQuoteEmail = onCall(async (request) => {
 
     // 9. Actualizar Firestore
     console.log('💾 Actualizando estado en Firestore...');
-    
+
     const db = admin.firestore();
     const quoteRef = db
       .collection('usuarios')
@@ -266,9 +266,9 @@ exports.sendQuoteEmail = onCall(async (request) => {
 
   } catch (error) {
     console.error('❌ Error enviando email:', error);
-    
+
     let errorMessage = 'Error al enviar email';
-    
+
     if (error.message?.includes('Invalid email')) {
       errorMessage = 'Email inválido. Verifica la dirección de correo.';
     } else if (error.message?.includes('API key')) {
@@ -283,5 +283,124 @@ exports.sendQuoteEmail = onCall(async (request) => {
     });
 
     throw new Error(errorMessage);
+  }
+});
+
+/**
+ * Cloud Function para sincronizar productos desde Wix API
+ * HTTP Function que actúa como proxy para evitar CORS
+ */
+async function fetchAllWixProducts(apiKey, siteId) {
+  let allProducts = [];
+  let cursor = null;
+
+  do {
+    const body = {
+      query: {
+        paging: {
+          limit: 100,
+          ...(cursor && { cursor })
+        }
+      }
+    };
+
+    const response = await fetch('https://www.wixapis.com/stores/v1/products/query', {
+      method: 'POST',
+      headers: {
+        'Authorization': apiKey,
+        'wix-site-id': siteId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Wix API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const formattedProducts = data.products.map(p => ({
+      sku: p.sku,
+      nombre: p.name,
+      descripcion: p.description || '',
+      precio_iva_incluido: p.priceData?.price || 0,
+      precioBase: p.priceData?.price || 0,
+      imagen_url: p.media?.mainMedia?.image?.url || '',
+      inventory: p.stock?.quantity || 0,
+      categoria: p.productType || 'General'
+    }));
+
+    allProducts = [...allProducts, ...formattedProducts];
+    cursor = data.metadata?.cursors?.next;
+
+  } while (cursor);
+
+  return allProducts;
+}
+
+exports.syncWixProducts = onRequest({ cors: true }, async (req, res) => {
+  console.log('🔄 Iniciando sincronización de productos Wix...');
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const { apiKey, siteId, userId } = req.body;
+
+    if (!apiKey || !siteId || !userId) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    console.log(`📦 Obteniendo productos de Wix para usuario: ${userId}`);
+
+    // Obtener productos con paginación
+    const products = await fetchAllWixProducts(apiKey, siteId);
+
+    console.log(`✅ Obtenidos ${products.length} productos de Wix`);
+    console.log('💾 Guardando en Firestore...');
+
+    // Guardar en Firestore
+    const db = admin.firestore();
+    const batch = db.batch();
+    const productsRef = db.collection(`usuarios/${userId}/productos`);
+
+
+
+    products.forEach(product => {
+      const docRef = productsRef.doc(product.sku);
+      batch.set(docRef, {
+        ...product,
+        lastSync: new Date(),
+        fechaActualizacion: new Date()
+      }, { merge: true });
+    });
+
+    // Guardar timestamp
+    const syncRef = db.doc(`usuarios/${userId}/settings/wix_sync`);
+    batch.set(syncRef, {
+      lastSync: new Date(),
+      productsCount: products.length
+    });
+
+    await batch.commit();
+
+    console.log('✅ Sincronización completada exitosamente');
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      products
+    });
+
+  } catch (error) {
+    console.error('❌ Error en syncWixProducts:', error);
+    res.status(500).json({
+      error: 'Sync failed',
+      message: error.message
+    });
   }
 });
