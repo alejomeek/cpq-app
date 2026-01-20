@@ -6,13 +6,15 @@ import ProductDetails from './ProductDetails.jsx';
 import { Button } from '@/ui/button.jsx';
 import { Input } from '@/ui/input.jsx';
 import AlertDialog from '../comunes/AlertDialog.jsx';
-import { 
-  PlusIcon, 
-  Search, 
-  LayoutGrid, 
-  List, 
+import {
+  PlusIcon,
+  Search,
+  LayoutGrid,
+  List,
   Filter,
-  SlidersHorizontal 
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import {
   Select,
@@ -32,21 +34,25 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState('grid'); // 'grid' o 'list'
-  
+
   // Nuevos estados para filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
-  
+
+  // Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
   // NUEVO: Estado para dialog de confirmación de eliminación
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productsToDelete, setProductsToDelete] = useState([]);
-  
+
   // NUEVO: Estado para sheet de detalles
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
+
   // Cargar productos
   useEffect(() => {
     if (!user?.uid) {
@@ -56,7 +62,7 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
 
     setLoading(true);
     setError(null);
-    
+
     const unsubscribe = onSnapshot(
       collection(db, 'usuarios', user.uid, 'productos'),
       (snapshot) => {
@@ -73,7 +79,7 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
         setLoading(false);
       }
     );
-    
+
     return () => unsubscribe();
   }, [db, user]);
 
@@ -114,7 +120,7 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
 
     try {
       const { addDoc, collection } = await import('firebase/firestore');
-      
+
       const duplicatedProduct = {
         ...product,
         nombre: `${product.nombre} (Copia)`,
@@ -122,11 +128,11 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
         fechaCreacion: new Date(),
         fechaActualizacion: new Date(),
       };
-      
+
       delete duplicatedProduct.id;
-      
+
       await addDoc(collection(db, 'usuarios', user.uid, 'productos'), duplicatedProduct);
-      
+
       console.log('Producto duplicado exitosamente');
     } catch (error) {
       console.error('Error al duplicar producto:', error);
@@ -146,14 +152,14 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
     try {
       // Eliminar cada producto
       await Promise.all(
-        productsToDelete.map(product => 
+        productsToDelete.map(product =>
           deleteDoc(doc(db, 'usuarios', user.uid, 'productos', product.id))
         )
       );
 
       setDeleteDialogOpen(false);
       setProductsToDelete([]);
-      
+
       console.log(`${productsToDelete.length} producto(s) eliminado(s) exitosamente`);
     } catch (error) {
       console.error('Error al eliminar productos:', error);
@@ -161,13 +167,13 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
   };
 
   // Definir columns DESPUÉS de todas las funciones
-  const columns = useMemo(() => 
+  const columns = useMemo(() =>
     createColumns(
       handleProductClick,
       handleEditProductClick,
       handleDuplicateProduct,
       handleDeleteProduct
-    ), 
+    ),
     [onEditProduct]
   );
 
@@ -178,7 +184,7 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
     // Filtro por búsqueda
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(product => 
+      filtered = filtered.filter(product =>
         product.nombre?.toLowerCase().includes(query) ||
         product.descripcion?.toLowerCase().includes(query) ||
         product.sku?.toLowerCase().includes(query)
@@ -192,7 +198,7 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
 
     // Filtro por categoría
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(product => 
+      filtered = filtered.filter(product =>
         product.categorias?.includes(selectedCategory)
       );
     }
@@ -215,6 +221,31 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
 
     return filtered;
   }, [products, searchQuery, selectedType, selectedCategory, sortBy]);
+
+  // Calcular totales de paginación
+  const totalItems = filteredAndSortedProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Resetear a página 1 cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedType, selectedCategory]);
+
+  // Obtener productos de la página actual
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedProducts.slice(startIndex, endIndex);
+  }, [filteredAndSortedProducts, currentPage, itemsPerPage]);
+
+  // Funciones de navegación
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const nextPage = () => goToPage(currentPage + 1);
+  const prevPage = () => goToPage(currentPage - 1);
 
   // Estados de carga
   if (loading) {
@@ -246,7 +277,8 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Catálogo de Productos</h1>
           <p className="text-muted-foreground mt-1">
-            {filteredAndSortedProducts.length} de {products.length} productos
+            Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} productos
+            {totalItems !== products.length && ` (${products.length} total)`}
           </p>
         </div>
         <Button onClick={onAddNewProduct} size="lg">
@@ -403,26 +435,136 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
             </Button>
           )}
         </div>
-      ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSortedProducts.map(product => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onClick={() => handleProductClick(product)}
-              onEdit={handleEditProductClick}
-              onDuplicate={handleDuplicateProduct}
-              onDelete={handleDeleteProduct}
-            />
-          ))}
-        </div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={filteredAndSortedProducts}
-          onDeleteSelectedItems={handleDeleteSelected}
-        />
+        <>
+          {view === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {paginatedProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onClick={() => handleProductClick(product)}
+                  onEdit={handleEditProductClick}
+                  onDuplicate={handleDuplicateProduct}
+                  onDelete={handleDeleteProduct}
+                />
+              ))}
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={paginatedProducts}
+              onDeleteSelectedItems={handleDeleteSelected}
+            />
+          )}
+
+          {/* Controles de paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t pt-4 mt-6">
+              <div className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+
+                {/* Números de página */}
+                <div className="flex items-center gap-1">
+                  {/* Primera página */}
+                  {currentPage > 3 && (
+                    <>
+                      <Button
+                        variant={currentPage === 1 ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(1)}
+                        className="w-9"
+                      >
+                        1
+                      </Button>
+                      {currentPage > 4 && <span className="px-2">...</span>}
+                    </>
+                  )}
+
+                  {/* Páginas cercanas */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      const distance = Math.abs(page - currentPage);
+                      return distance <= 2 || page === 1 || page === totalPages;
+                    })
+                    .filter((page, index, array) => {
+                      if (page === 1 || page === totalPages) return false;
+                      return true;
+                    })
+                    .map(page => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(page)}
+                        className="w-9"
+                      >
+                        {page}
+                      </Button>
+                    ))
+                  }
+
+                  {/* Última página */}
+                  {currentPage < totalPages - 2 && (
+                    <>
+                      {currentPage < totalPages - 3 && <span className="px-2">...</span>}
+                      <Button
+                        variant={currentPage === totalPages ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(totalPages)}
+                        className="w-9"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              {/* Ir a página */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Ir a:</span>
+                <Input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = parseInt(e.target.value);
+                    if (page >= 1 && page <= totalPages) {
+                      goToPage(page);
+                    }
+                  }}
+                  className="w-16 text-center"
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
+
 
       {/* Dialog de confirmación de eliminación */}
       <AlertDialog
