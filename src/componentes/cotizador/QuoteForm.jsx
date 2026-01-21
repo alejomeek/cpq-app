@@ -6,6 +6,7 @@ import { pdf } from '@react-pdf/renderer';
 import QuotePDF from './QuotePDF.jsx';
 import ProductoForm from '../catalogo/ProductoForm.jsx';
 import { obtenerSiguienteNumeroCotizacion } from '../../utils/firestoreUtils.js';
+import { getNextQuoteNumber } from '../../utils/quoteNumbering.js';
 import { Button } from '@/ui/button.jsx';
 import { Input } from '@/ui/input.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card.jsx';
@@ -17,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select.jsx";
+import { RadioGroup, RadioGroupItem } from "@/ui/radio-group.jsx";
+import { Label } from "@/ui/label.jsx";
 import { Trash2, AlertCircle, X, ShoppingCart, ArrowLeft, Mail } from 'lucide-react';
 import { DatePicker } from '@/ui/DatePicker.jsx';
 import { SendEmailDialog } from './SendEmailDialog.jsx';
@@ -186,7 +189,17 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   const { user } = useAuth();
 
   // --- Estados ---
-  const [quote, setQuote] = useState({ numero: '', estado: 'Borrador', clienteId: '', vencimiento: null, condicionesPago: '', lineas: [], });
+  const [quote, setQuote] = useState({
+    numero: '',
+    estado: 'Borrador',
+    clienteId: '',
+    vencimiento: null,
+    condicionesPago: '',
+    lineas: [],
+    tienda: '',           // NUEVO: Multi-tienda
+    fleteType: 'incluido', // NUEVO: Tipo de flete (incluido/manual)
+    fleteValue: 0,        // NUEVO: Valor del flete
+  });
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
   const [paymentTerms, setPaymentTerms] = useState([]);
@@ -263,7 +276,10 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
             setQuote({
               ...data,
               vencimiento: data.vencimiento ? data.vencimiento.toDate() : null,
-              lineas: data.lineas || []
+              lineas: data.lineas || [],
+              tienda: data.tienda || 'Barranquilla',        // Default para cotizaciones antiguas
+              fleteType: data.fleteType || 'incluido',       // Default para cotizaciones antiguas
+              fleteValue: data.fleteValue || 0               // Default para cotizaciones antiguas
             });
             setCanSave(true);
           } else {
@@ -271,17 +287,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
              setCanSave(false);
           }
         } else {
-          // ¡CAMBIO! Pasar user.uid a obtenerSiguienteNumeroCotizacion
-          
-          const formattedNumber = await obtenerSiguienteNumeroCotizacion(db, user.uid);
-          if (formattedNumber) {
-            setQuote(prev => ({ ...prev, numero: formattedNumber }));
-            setCanSave(true);
-          } else {
-            setErrorNotification({ message: "Error al generar Nº de cotización. No se podrá guardar." });
-            setQuote(prev => ({ ...prev, numero: 'ERROR' }));
-            setCanSave(false);
-          }
+          // NUEVO: No generar número hasta que se seleccione tienda
+          setQuote(prev => ({ ...prev, numero: 'Selecciona una tienda' }));
+          setCanSave(false); // No permitir guardar hasta que se seleccione tienda
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -332,6 +340,39 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   const cancelSearchLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, i) => i !== index) }));
   const removeLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, i) => i !== index) }));
 
+  // NUEVO: Manejar cambio de tienda y generar número
+  const handleTiendaChange = async (tienda) => {
+    try {
+      setQuote(prev => ({ ...prev, tienda, numero: 'Generando...' }));
+      setCanSave(false);
+
+      // Solo generar número si es una cotización nueva
+      if (!quoteId) {
+        const quoteNumber = await getNextQuoteNumber(db, user.uid, tienda);
+        setQuote(prev => ({ ...prev, numero: quoteNumber }));
+        setCanSave(true);
+      } else {
+        // Si está editando, mantener el número existente
+        setQuote(prev => ({ ...prev, tienda }));
+        setCanSave(true);
+      }
+    } catch (error) {
+      console.error('Error generando número:', error);
+      setErrorNotification({ message: 'Error al generar número de cotización' });
+      setQuote(prev => ({ ...prev, numero: 'ERROR' }));
+      setCanSave(false);
+    }
+  };
+
+  // NUEVO: Manejar cambio de tipo de flete
+  const handleFleteTypeChange = (type) => {
+    setQuote(prev => ({
+      ...prev,
+      fleteType: type,
+      fleteValue: type === 'incluido' ? 0 : prev.fleteValue
+    }));
+  };
+
   // --- Función de Guardado ---
   const handleSave = async () => {
     // ¡NUEVO! Validar que el usuario esté autenticado
@@ -340,13 +381,16 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       return;
     }
 
-    if (!canSave || !quote.numero || quote.numero === 'ERROR' || !quote.clienteId) {
-      setErrorNotification({ message: !quote.clienteId ? "Selecciona un cliente." : "No se puede guardar la cotización." });
+    if (!canSave || !quote.numero || quote.numero === 'ERROR' || !quote.clienteId || !quote.tienda) {
+      let errorMsg = "No se puede guardar la cotización.";
+      if (!quote.clienteId) errorMsg = "Selecciona un cliente.";
+      else if (!quote.tienda) errorMsg = "Selecciona una tienda.";
+      setErrorNotification({ message: errorMsg });
       return;
     }
     setLoading(true);
     setErrorNotification(null);
-    const { subtotal, tax, total } = calculateTotals();
+    const { subtotal, tax, fleteValue, total } = calculateTotals();
     const selectedClient = clients.find(c => c.id === quote.clienteId);
     const quoteData = {
       numero: quote.numero,
@@ -355,6 +399,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       clienteNombre: selectedClient?.nombre || 'N/A',
       condicionesPago: quote.condicionesPago,
       vencimiento: quote.vencimiento ? Timestamp.fromDate(quote.vencimiento) : null,
+      tienda: quote.tienda,          // NUEVO
+      fleteType: quote.fleteType,    // NUEVO
+      fleteValue: fleteValue,        // NUEVO
       subtotal,
       impuestos: tax,
       total,
@@ -421,15 +468,16 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     }
   };
 
-  // --- Función de Cálculo (sin cambios) ---
+  // --- Función de Cálculo (MODIFICADA para incluir flete) ---
   const calculateTotals = () => {
     const lineasValidas = Array.isArray(quote.lineas) ? quote.lineas : [];
     const subtotal = lineasValidas.reduce((acc, line) => acc + ((parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0)), 0);
     const tax = subtotal * 0.19;
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
+    const fleteValue = quote.fleteType === 'incluido' ? 0 : (parseFloat(quote.fleteValue) || 0);
+    const total = subtotal + tax + fleteValue;
+    return { subtotal, tax, fleteValue, total };
   };
-  const { subtotal, tax, total } = calculateTotals();
+  const { subtotal, tax, fleteValue, total } = calculateTotals();
 
   const statusOptions = ["Borrador", "Enviada", "En negociación", "Aprobada", "Rechazada", "Vencida"];
   
@@ -493,7 +541,25 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           <Card className="bg-transparent border-none">
               <CardHeader className="p-0 mb-4"><CardTitle>Información Principal</CardTitle></CardHeader>
               <CardContent className="p-6 bg-card rounded-lg border">
-                  <div className="grid md:grid-cols-3 gap-6">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div>
+                          <label className="block text-sm font-medium mb-1 text-foreground">
+                            Tienda <span className="text-destructive">*</span>
+                          </label>
+                          <Select
+                            value={quote.tienda}
+                            onValueChange={handleTiendaChange}
+                            disabled={!!quoteId}
+                          >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una tienda" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Barranquilla">🏪 Barranquilla</SelectItem>
+                                <SelectItem value="Medellin">🏪 Medellín</SelectItem>
+                              </SelectContent>
+                          </Select>
+                      </div>
                       <div>
                           <label className="block text-sm font-medium mb-1 text-foreground">Cliente</label>
                           <Select name="clienteId" value={quote.clienteId} onValueChange={(value) => handleInputChange({ target: { name: 'clienteId', value } })}>
@@ -565,6 +631,52 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                     <CardContent className="p-6 bg-card rounded-lg border space-y-4 text-card-foreground">
                         <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>IVA 19%:</span><span>${tax.toFixed(2)}</span></div>
+
+                        {/* NUEVO: Campo de Flete */}
+                        <Separator />
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium">Flete</Label>
+                          <RadioGroup
+                            value={quote.fleteType}
+                            onValueChange={handleFleteTypeChange}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="incluido" id="flete-incluido" />
+                              <Label htmlFor="flete-incluido" className="font-normal cursor-pointer">
+                                Incluido en el precio
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="manual" id="flete-manual" />
+                              <Label htmlFor="flete-manual" className="font-normal cursor-pointer">
+                                Agregar valor de flete
+                              </Label>
+                            </div>
+                          </RadioGroup>
+
+                          {quote.fleteType === 'manual' && (
+                            <div className="pl-6">
+                              <Label htmlFor="fleteValue" className="text-sm">Valor del flete</Label>
+                              <Input
+                                id="fleteValue"
+                                type="number"
+                                min="0"
+                                value={quote.fleteValue || ''}
+                                onChange={(e) => setQuote(prev => ({ ...prev, fleteValue: parseFloat(e.target.value) || 0 }))}
+                                placeholder="$ 0"
+                                className="mt-1"
+                              />
+                            </div>
+                          )}
+
+                          {quote.fleteType === 'manual' && quote.fleteValue > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span>Flete:</span>
+                              <span>${fleteValue.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+
                         <Separator />
                         <div className="flex justify-between text-xl"><span className="font-bold">Total:</span><span className="font-bold text-primary">${total.toFixed(2)}</span></div>
                     </CardContent>
