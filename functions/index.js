@@ -337,7 +337,7 @@ async function fetchAllWixProducts(apiKey, siteId) {
       break;
     }
 
-    const formattedProducts = items.map(p => {
+    const formattedProducts = items.map((p, index) => {
       // Obtener precio
       const price = p.price?.price || p.priceData?.price || 0;
 
@@ -349,17 +349,45 @@ async function fetchAllWixProducts(apiKey, siteId) {
         inventory = 999;
       }
 
-      // Obtener imagen
-      let imageUrl = 'https://placehold.co/100x100/EEE/333?text=S/I';
-      const media = p.media || {};
-      if (media.mainMedia?.image?.url) {
-        imageUrl = media.mainMedia.image.url;
+      // DEBUG EXTENDIDO: Ver estructura COMPLETA del primer producto
+      if (index === 0) {
+        console.log('==========================================');
+        console.log('🔍 ESTRUCTURA COMPLETA DEL PRIMER PRODUCTO:');
+        console.log('==========================================');
+        console.log(JSON.stringify(p, null, 2));
+        console.log('==========================================');
       }
+
+      // Obtener imagen con TODOS los fallbacks posibles
+      let imageUrl = 'https://placehold.co/100x100/EEE/333?text=S/I';
+
+      // Intentar TODAS las rutas posibles según documentación de Wix
+      if (p.media?.mainMedia?.image?.url) {
+        imageUrl = p.media.mainMedia.image.url;
+      } else if (p.media?.items?.length > 0 && p.media.items[0].image?.url) {
+        imageUrl = p.media.items[0].image.url;
+      } else if (p.mediaItems?.length > 0 && p.mediaItems[0].url) {
+        imageUrl = p.mediaItems[0].url;
+      } else if (p.mainMedia?.url) {
+        imageUrl = p.mainMedia.url;
+      } else if (p.media?.mainMedia?.thumbnail?.url) {
+        imageUrl = p.media.mainMedia.thumbnail.url;
+      } else if (p.ribbon?.media?.image?.url) {
+        imageUrl = p.ribbon.media.image.url;
+      }
+
+      // Si sigue siendo placeholder, log de warning
+      if (imageUrl.includes('placehold')) {
+        console.log(`⚠️ No se encontró imagen para: ${p.name} (SKU: ${p.sku})`);
+      }
+
+      // Limpiar descripción HTML
+      const cleanDescription = stripHtmlTags(p.description || '');
 
       return {
         sku: String(p.sku || ''),
         nombre: p.name || 'Sin Nombre',
-        descripcion: p.description || '',
+        descripcion: cleanDescription,
         precio_iva_incluido: parseFloat(price) || 0,
         precioBase: parseFloat(price) || 0,
         imagen_url: imageUrl,
@@ -383,6 +411,22 @@ async function fetchAllWixProducts(apiKey, siteId) {
 
   console.log(`🎉 Total products fetched: ${allProducts.length}`);
   return allProducts;
+}
+
+/**
+ * Función helper para limpiar HTML de las descripciones
+ */
+function stripHtmlTags(html) {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '') // Remover tags HTML
+    .replace(/&nbsp;/g, ' ') // Spaces
+    .replace(/&amp;/g, '&')  // Ampersands
+    .replace(/&lt;/g, '<')   // Less than
+    .replace(/&gt;/g, '>')   // Greater than
+    .replace(/&quot;/g, '"') // Quotes
+    .replace(/&#39;/g, "'")  // Apostrophes
+    .trim();
 }
 
 exports.syncWixProducts = onRequest({
