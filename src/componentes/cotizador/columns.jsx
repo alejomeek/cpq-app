@@ -29,11 +29,12 @@ const getStatusBadge = (status = 'Borrador') => {
 
 // Función principal createColumns
 export const createColumns = (
-  onEditQuote, 
-  onDeleteQuote, 
-  clients, 
+  onEditQuote,
+  onDeleteQuote,
+  clients,
   quoteStyleName,
-  onSendEmail // NUEVO: callback para enviar email
+  onSendEmail, // callback para enviar email
+  products // productos para mostrar imágenes en PDF
 ) => [
   {
     id: "select",
@@ -137,7 +138,7 @@ export const createColumns = (
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   {client ? (
                       <PDFDownloadLink
-                          document={<QuotePDF quote={quote} client={client} styleName={quoteStyleName} />}
+                          document={<QuotePDF quote={quote} client={client} products={products} styleName={quoteStyleName} />}
                           fileName={`${quote.numero || 'cotizacion'}.pdf`}
                           style={{ textDecoration: 'none', color: 'inherit', width: '100%' }}
                       >

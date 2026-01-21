@@ -8,22 +8,23 @@ export const useSendQuoteEmail = (functions) => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
-  const sendQuoteEmail = async ({ 
-    quoteId, 
-    quote, 
-    client, 
-    quoteStyleName 
+  const sendQuoteEmail = async ({
+    quoteId,
+    quote,
+    client,
+    products,
+    quoteStyleName
   }) => {
     setSending(true);
     setError(null);
 
     try {
       console.log('📧 Iniciando envío de email...');
-      
+
       // 1. Generar PDF
       console.log('📄 Generando PDF...');
       const blob = await pdf(
-        <QuotePDF quote={quote} client={client} styleName={quoteStyleName} />
+        <QuotePDF quote={quote} client={client} products={products} styleName={quoteStyleName} />
       ).toBlob();
 
       // 2. Convertir blob a base64

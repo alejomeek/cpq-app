@@ -43,12 +43,15 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
 
     const [globalConfig, setGlobalConfig] = useState(null);
     const [loadingConfig, setLoadingConfig] = useState(true);
-    
+
+    // NUEVO: Estado para productos
+    const [products, setProducts] = useState([]);
+
     // NUEVO: Estados para email
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState(null);
     const [selectedClient, setSelectedClient] = useState(null);
-    
+
     // NUEVO: Hook de envío de email
     const functions = getFunctions();
     const { sendQuoteEmail, sending: sendingEmail } = useSendQuoteEmail(functions);
@@ -65,6 +68,17 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
         setEmailDialogOpen(true);
     };
     
+    // NUEVO: Función para cargar productos
+    const fetchProducts = useCallback(async () => {
+        if (!user || !user.uid) return;
+        try {
+            const productsSnap = await getDocs(collection(db, "usuarios", user.uid, "productos"));
+            setProducts(productsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (error) {
+            console.error('Error loading products:', error);
+        }
+    }, [db, user]);
+
     // NUEVO: Función para enviar email
     const handleSendEmailSubmit = async (email) => {
         try {
@@ -75,6 +89,7 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
                     ...selectedClient,
                     email: email
                 },
+                products: products,
                 quoteStyleName: globalConfig?.quoteStyle || 'Bubble'
             });
             
@@ -128,17 +143,23 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
         fetchGlobalConfig();
     }, [db, user]); // ¡CAMBIO! Añadir 'user' a las dependencias
 
+    // NUEVO: useEffect para cargar productos
+    useEffect(() => {
+        fetchProducts();
+    }, [fetchProducts]);
+
     const columns = useMemo(() => {
         const quoteStyle = globalConfig?.quoteStyle || 'Bubble';
         console.log("[QuoteList] Passing quoteStyle to createColumns:", quoteStyle);
         return createColumns(
-            onEditQuote, 
-            handleDeleteQuote, 
-            clients, 
+            onEditQuote,
+            handleDeleteQuote,
+            clients,
             quoteStyle,
-            handleSendEmail  // NUEVO: Pasar función de email
+            handleSendEmail, // Pasar función de email
+            products // NUEVO: Pasar productos para imágenes en PDF
         );
-    }, [onEditQuote, clients, globalConfig]);
+    }, [onEditQuote, clients, globalConfig, products]);
 
     // ¡CAMBIO! fetchQuotes ahora obtiene cotizaciones DEL USUARIO
     const fetchQuotes = useCallback(async () => {

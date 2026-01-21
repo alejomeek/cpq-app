@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Limpiar Base de Datos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .user-info strong {
+            color: #333;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-count {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-delete-quotes {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-delete-clients {
+            background: #ee5a6f;
+            color: white;
+        }
+
+        .btn-delete-products {
+            background: #c44569;
+            color: white;
+        }
+
+        .logs {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .logs.visible {
+            display: block;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-success {
+            color: #00ff00;
+        }
+
+        .log-error {
+            color: #ff4444;
+        }
+
+        .log-info {
+            color: #4db8ff;
+        }
+
+        .log-warning {
+            color: #ffaa00;
+        }
+    </style>
+    <script src="/firebase-config.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔧 Admin Panel</h1>
+        <p class="subtitle">Gestión de Base de Datos</p>
+
+        <div class="user-info" id="userInfo">
+            <strong>Usuario:</strong> <span id="userEmail">Cargando...</span>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number" id="quotesCount">-</div>
+                <div class="label">Cotizaciones</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="clientsCount">-</div>
+                <div class="label">Clientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="productsCount">-</div>
+                <div class="label">Productos</div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-count" onclick="countAll()">📊 Contar Items</button>
+            <button class="btn-delete-quotes" onclick="deleteAllQuotes()">🗑️ Borrar Todas las Cotizaciones</button>
+            <button class="btn-delete-clients" onclick="deleteAllClients()">🗑️ Borrar Todos los Clientes</button>
+            <button class="btn-delete-products" onclick="deleteAllProducts()">🗑️ Borrar Todos los Productos</button>
+        </div>
+
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, writeBatch, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Cargar configuración desde archivo público
+        const firebaseConfig = window.firebaseConfig;
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        // Logs
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.classList.add('visible');
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        // Auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('userEmail').textContent = user.email;
+                log('✅ Usuario autenticado: ' + user.email, 'success');
+            } else {
+                document.getElementById('userEmail').textContent = 'No autenticado';
+                log('❌ No hay usuario autenticado. Por favor inicia sesión.', 'error');
+            }
+        });
+
+        // Contar items
+        window.countAll = async function () {
+            if (!currentUser) {
+                alert('Por favor inicia sesión primero');
+                return;
+            }
+
+            log('📊 Contando items...', 'info');
+
+            try {
+                const quotesSnap = await getDocs(collection(db, 'usuarios', currentUser.uid, 'cotizaciones'));
+                const clientsSnap = await getDocs(collection(db, 'usuarios', currentUser.uid, 'clientes'));
+                const productsSnap = await getDocs(collection(db, 'usuarios', currentUser.uid, 'productos'));
+
+                document.getElementById('quotesCount').textContent = quotesSnap.size;
+                document.getElementById('clientsCount').textContent = clientsSnap.size;
+                document.getElementById('productsCount').textContent = productsSnap.size;
+
+                log(`✅ Cotizaciones: ${quotesSnap.size}`, 'success');
+                log(`✅ Clientes: ${clientsSnap.size}`, 'success');
+                log(`✅ Productos: ${productsSnap.size}`, 'success');
+            } catch (error) {
+                log('❌ Error contando: ' + error.message, 'error');
+            }
+        };
+
+        // Función genérica de borrado en batches
+        async function deleteCollection(collectionName, label) {
+            if (!currentUser) {
+                alert('Por favor inicia sesión primero');
+                return;
+            }
+
+            log(`🗑️ Iniciando borrado de ${label}...`, 'warning');
+
+            try {
+                const collectionRef = collection(db, 'usuarios', currentUser.uid, collectionName);
+                const snapshot = await getDocs(collectionRef);
+                const total = snapshot.size;
+
+                if (total === 0) {
+                    log(`ℹ️ No hay ${label} para borrar`, 'info');
+                    return;
+                }
+
+                log(`📦 Total a borrar: ${total}`, 'info');
+
+                // Borrar en batches de 500 (límite de Firebase)
+                let deleted = 0;
+                let batch = writeBatch(db);
+                let batchCount = 0;
+
+                for (const docSnap of snapshot.docs) {
+                    batch.delete(docSnap.ref);
+                    batchCount++;
+
+                    if (batchCount === 500) {
+                        await batch.commit();
+                        deleted += batchCount;
+                        log(`✓ Borrados ${deleted}/${total} ${label}...`, 'info');
+                        batch = writeBatch(db);
+                        batchCount = 0;
+                    }
+                }
+
+                // Commit del batch restante
+                if (batchCount > 0) {
+                    await batch.commit();
+                    deleted += batchCount;
+                }
+
+                log(`✅ ${deleted} ${label} borrados exitosamente`, 'success');
+
+                // Actualizar contador
+                await countAll();
+
+            } catch (error) {
+                log(`❌ Error borrando ${label}: ${error.message}`, 'error');
+            }
+        }
+
+        window.deleteAllQuotes = () => deleteCollection('cotizaciones', 'cotizaciones');
+        window.deleteAllClients = () => deleteCollection('clientes', 'clientes');
+        window.deleteAllProducts = () => deleteCollection('productos', 'productos');
+
+        // Contar al cargar
+        setTimeout(() => {
+            if (currentUser) {
+                countAll();
+            }
+        }, 1000);
+    </script>
+</body>
+
+</html>

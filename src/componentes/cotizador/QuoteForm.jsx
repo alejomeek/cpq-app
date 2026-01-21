@@ -150,8 +150,8 @@ const InlineProductSearch = ({ products, onProductSelect, onCancel, onCreateNew,
   );
 };
 
-// --- Sub-componente: DownloadPDFButton (sin cambios) ---
-const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, total, quoteStyleName }) => {
+// --- Sub-componente: DownloadPDFButton ---
+const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, total, quoteStyleName, products }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const styleToUse = quoteStyleName || 'Bubble';
 
@@ -164,7 +164,7 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      const doc = <QuotePDF quote={{ ...quote, subtotal, impuestos: tax, total }} client={currentClient} styleName={styleToUse} />;
+      const doc = <QuotePDF quote={{ ...quote, subtotal, impuestos: tax, total }} client={currentClient} products={products} styleName={styleToUse} />;
       const blob = await pdf(doc).toBlob();
 
       const url = URL.createObjectURL(blob);
@@ -458,6 +458,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           ...client,
           email: email // Usar el email del dialog (puede ser editado)
         },
+        products: products,
         quoteStyleName: globalConfig?.quoteStyle || 'Bubble'
       });
 
@@ -517,6 +518,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
               tax={tax}
               total={total}
               quoteStyleName={globalConfig?.quoteStyle}
+              products={products}
             />
             {/* NUEVO: Botón Enviar por Email */}
             {quoteId && (

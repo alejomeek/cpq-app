@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
 // === Fuente principal ===
 Font.register({
@@ -134,6 +134,25 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 5,
   },
+  tableRowWithImage: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.white,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+  },
+  productImage: {
+    width: 50,
+    height: 50,
+    objectFit: 'cover',
+    marginRight: 8,
+  },
+  productInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   colDescription: { width: '34%' },
   colQty: { width: '15%', textAlign: 'center' },
   colPrice: { width: '16%', textAlign: 'right' },
@@ -228,7 +247,14 @@ const formatDate = (date) => {
 };
 
 // === COMPONENTE PRINCIPAL ===
-const QuotePDF = ({ quote, client }) => (
+const QuotePDF = ({ quote, client, products = [] }) => {
+  // Función auxiliar para obtener la imagen del producto
+  const getProductImage = (productId) => {
+    const product = products.find(p => p.id === productId);
+    return product?.imagen_url || 'https://placehold.co/200x200/e5e7eb/6b7280?text=Sin+Imagen';
+  };
+
+  return (
   <Document author="DIDACTICOS JUGANDO Y EDUCANDO SAS" title={`Cotización ${quote.numero}`}>
     <Page size="A4" style={styles.page}>
       {/* BURBUJA SUPERIOR */}
@@ -299,8 +325,15 @@ const QuotePDF = ({ quote, client }) => (
         </View>
 
         {quote.lineas.map((line, i) => (
-          <View key={i} style={styles.tableRow}>
-            <Text style={[styles.colDescription]}>{line.productName}</Text>
+          <View key={i} style={styles.tableRowWithImage}>
+            <View style={[styles.colDescription, styles.productInfo]}>
+              <Image
+                src={getProductImage(line.productId)}
+                style={styles.productImage}
+              />
+              <Text>{line.productName}</Text>
+            </View>
+
             <Text style={[styles.colQty]}>{line.quantity.toFixed(2)} Unidades</Text>
             <Text style={[styles.colPrice]}>{formatCurrency(line.price)}</Text>
             <Text style={[styles.colTax]}>19%</Text>
@@ -340,6 +373,7 @@ const QuotePDF = ({ quote, client }) => (
       </View>
     </Page>
   </Document>
-);
+  );
+};
 
 export default QuotePDF;
