@@ -30,26 +30,24 @@ export async function getDashboardStats(db, userId) {
     const allQuotes = quotesSnapshot.docs.map(doc => doc.data());
 
     const totalAprobado = allQuotes
-      .filter(q => q.estado === 'Aprobada')
+      .filter(q => q.estado === 'Ganada')
       .reduce((sum, q) => sum + q.total, 0);
 
     const cotizacionesCreadas = allQuotes.length;
-    
-    // Enviadas = Enviada + Aprobada + Rechazada + Vencida + En negociación
-    // (Todo lo que salió de borrador)
-    const cotizacionesEnviadas = allQuotes.filter(q => 
-      q.estado === 'Enviada' || 
-      q.estado === 'Aprobada' || 
-      q.estado === 'Rechazada' ||
-      q.estado === 'Vencida' ||
-      q.estado === 'En negociación'
-    ).length;
-    
-    const cotizacionesAprobadas = allQuotes.filter(q => q.estado === 'Aprobada').length;
 
-    // Tasa de aprobación = Aprobadas / Enviadas
-    const tasaAprobacion = cotizacionesEnviadas > 0 
-      ? (cotizacionesAprobadas / cotizacionesEnviadas) * 100 
+    // Enviadas = Enviada + Ganada + Perdida
+    // (Todo lo que salió de borrador)
+    const cotizacionesEnviadas = allQuotes.filter(q =>
+      q.estado === 'Enviada' ||
+      q.estado === 'Ganada' ||
+      q.estado === 'Perdida'
+    ).length;
+
+    const cotizacionesAprobadas = allQuotes.filter(q => q.estado === 'Ganada').length;
+
+    // Tasa de conversión = Ganadas / Enviadas
+    const tasaAprobacion = cotizacionesEnviadas > 0
+      ? (cotizacionesAprobadas / cotizacionesEnviadas) * 100
       : 0;
 
     const nuevosClientes = clientsSnapshot.size;
@@ -115,10 +113,8 @@ export async function getQuotesByStatus(db, userId) {
   const funnelOrder = [
     'Borrador',
     'Enviada',
-    'En negociación',
-    'Aprobada',
-    'Rechazada',
-    'Vencida',
+    'Ganada',
+    'Perdida',
   ];
 
   const statusCounts = new Map(funnelOrder.map(status => [status, 0]));
@@ -162,22 +158,22 @@ export async function getTopClientes(db, userId, limitCount = 3) {
   try {
     const quotesRef = collection(db, "usuarios", userId, "cotizaciones");
     const quotesSnapshot = await getDocs(quotesRef);
-    
+
     // Agrupar por cliente
     const clientesMap = new Map();
-    
+
     quotesSnapshot.forEach(doc => {
       const data = doc.data();
-      
-      // Solo cotizaciones aprobadas
-      if (data.estado !== 'Aprobada') return;
-      
+
+      // Solo cotizaciones ganadas
+      if (data.estado !== 'Ganada') return;
+
       const clienteId = data.clienteId;
       const clienteNombre = data.clienteNombre;
       const total = data.total || 0;
-      
+
       if (!clienteId) return;
-      
+
       if (clientesMap.has(clienteId)) {
         const cliente = clientesMap.get(clienteId);
         cliente.montoTotal += total;
@@ -191,12 +187,12 @@ export async function getTopClientes(db, userId, limitCount = 3) {
         });
       }
     });
-    
+
     // Convertir a array y ordenar por monto
     const topClientes = Array.from(clientesMap.values())
       .sort((a, b) => b.montoTotal - a.montoTotal)
       .slice(0, limitCount);
-    
+
     return topClientes;
   } catch (error) {
     console.error('Error obteniendo top clientes:', error);
@@ -218,10 +214,10 @@ export async function getTrendLast6Months(db, userId) {
   try {
     const quotesRef = collection(db, "usuarios", userId, "cotizaciones");
     const quotesSnapshot = await getDocs(quotesRef);
-    
+
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-    
+
     // Crear array de los últimos 6 meses
     const monthlyData = [];
     for (let i = 5; i >= 0; i--) {
@@ -232,11 +228,11 @@ export async function getTrendLast6Months(db, userId) {
         creadas: 0
       });
     }
-    
+
     // Agrupar cotizaciones creadas por mes
     quotesSnapshot.forEach(doc => {
       const data = doc.data();
-      
+
       // Convertir fechaCreacion a Date
       let fechaCreacionDate;
       if (data.fechaCreacion?.toDate) {
@@ -246,22 +242,22 @@ export async function getTrendLast6Months(db, userId) {
       } else {
         return;
       }
-      
+
       // Solo últimos 6 meses
       if (fechaCreacionDate < sixMonthsAgo) return;
-      
+
       // Encontrar el mes correspondiente
       const monthIndex = monthlyData.findIndex(month => {
         const monthStart = new Date(month.mesCompleto);
         const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59);
         return fechaCreacionDate >= monthStart && fechaCreacionDate <= monthEnd;
       });
-      
+
       if (monthIndex !== -1) {
         monthlyData[monthIndex].creadas++;
       }
     });
-    
+
     return monthlyData;
   } catch (error) {
     console.error('Error obteniendo tendencia 6 meses:', error);
@@ -288,16 +284,16 @@ export async function getMonthlyQuotesCount(db, userId) {
     const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-    
+
     const quotesRef = collection(db, "usuarios", userId, "cotizaciones");
     const allQuotesSnapshot = await getDocs(quotesRef);
-    
+
     let cotizacionesEsteMes = 0;
     let cotizacionesMesAnterior = 0;
-    
+
     allQuotesSnapshot.forEach(doc => {
       const data = doc.data();
-      
+
       // Convertir fechaCreacion a Date
       let fechaCreacionDate;
       if (data.fechaCreacion?.toDate) {
@@ -307,18 +303,18 @@ export async function getMonthlyQuotesCount(db, userId) {
       } else {
         return;
       }
-      
+
       // Contar mes actual
       if (fechaCreacionDate >= firstDayThisMonth) {
         cotizacionesEsteMes++;
       }
-      
+
       // Contar mes anterior
       if (fechaCreacionDate >= firstDayLastMonth && fechaCreacionDate <= lastDayLastMonth) {
         cotizacionesMesAnterior++;
       }
     });
-    
+
     return {
       cotizacionesEsteMes,
       cotizacionesMesAnterior
@@ -346,23 +342,23 @@ export async function getUrgentQuotes(db, userId) {
   try {
     const now = new Date();
     const in48Hours = new Date(now.getTime() + (48 * 60 * 60 * 1000));
-    
+
     const quotesRef = collection(db, "usuarios", userId, "cotizaciones");
-    
+
     // Obtener todas las cotizaciones y filtrar en memoria
     // (Firestore tiene limitaciones con queries compuestas)
     const allQuotesSnapshot = await getDocs(quotesRef);
-    
+
     const urgentQuotes = [];
-    
+
     allQuotesSnapshot.forEach(doc => {
       const data = doc.data();
-      
-      // Verificar estado
-      if (!['Enviada', 'En negociación'].includes(data.estado)) {
+
+      // Verificar estado (solo enviadas)
+      if (data.estado !== 'Enviada') {
         return;
       }
-      
+
       // Convertir vencimiento a Date
       let vencimientoDate;
       if (data.vencimiento?.toDate) {
@@ -372,7 +368,7 @@ export async function getUrgentQuotes(db, userId) {
       } else {
         return; // Skip si no tiene fecha válida
       }
-      
+
       // Verificar si está en rango
       if (vencimientoDate >= now && vencimientoDate <= in48Hours) {
         urgentQuotes.push({
@@ -381,14 +377,14 @@ export async function getUrgentQuotes(db, userId) {
         });
       }
     });
-    
+
     // Ordenar por fecha de vencimiento
     urgentQuotes.sort((a, b) => {
       const dateA = a.vencimiento?.toDate ? a.vencimiento.toDate() : a.vencimiento;
       const dateB = b.vencimiento?.toDate ? b.vencimiento.toDate() : b.vencimiento;
       return dateA - dateB;
     });
-    
+
     return urgentQuotes;
   } catch (error) {
     console.error('Error obteniendo cotizaciones urgentes:', error);
@@ -418,20 +414,20 @@ export async function getTrendData(db, userId) {
     const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-    
+
     const quotesRef = collection(db, "usuarios", userId, "cotizaciones");
-    
+
     // Obtener todas las cotizaciones
     const allQuotesSnapshot = await getDocs(quotesRef);
-    
+
     let montoAnterior = 0;
     let aprobadasAnterior = 0;
     let totalAnterior = 0;
     let enviadasAnterior = 0;
-    
+
     allQuotesSnapshot.forEach(doc => {
       const data = doc.data();
-      
+
       // Convertir fechaCreacion a Date
       let fechaCreacionDate;
       if (data.fechaCreacion?.toDate) {
@@ -441,28 +437,28 @@ export async function getTrendData(db, userId) {
       } else {
         return; // Skip si no tiene fecha válida
       }
-      
+
       // Verificar si es del mes anterior
       if (fechaCreacionDate >= firstDayLastMonth && fechaCreacionDate <= lastDayLastMonth) {
         totalAnterior++;
-        
+
         // Contar enviadas (todo menos borrador)
-        if (['Enviada', 'Aprobada', 'Rechazada', 'Vencida', 'En negociación'].includes(data.estado)) {
+        if (['Enviada', 'Ganada', 'Perdida'].includes(data.estado)) {
           enviadasAnterior++;
         }
-        
-        if (data.estado === 'Aprobada') {
+
+        if (data.estado === 'Ganada') {
           montoAnterior += data.total || 0;
           aprobadasAnterior++;
         }
       }
     });
-    
+
     // Calcular tasa del mes anterior
-    const tasaAnterior = enviadasAnterior > 0 
-      ? (aprobadasAnterior / enviadasAnterior) * 100 
+    const tasaAnterior = enviadasAnterior > 0
+      ? (aprobadasAnterior / enviadasAnterior) * 100
       : 0;
-    
+
     return {
       montoAnterior,
       tasaAnterior,
