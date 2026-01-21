@@ -166,8 +166,8 @@ const Dashboard = ({ db, navigate }) => {
             <button
               onClick={() => setActiveTab('metricas')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'metricas'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <BarChart3 className="h-4 w-4" />
@@ -176,8 +176,8 @@ const Dashboard = ({ db, navigate }) => {
             <button
               onClick={() => setActiveTab('insights')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'insights'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <Sparkles className="h-4 w-4" />
@@ -229,7 +229,7 @@ const Dashboard = ({ db, navigate }) => {
                 {(stats?.tasaAprobacion || 0).toFixed(1)}%
               </div>
               <p className="text-sm text-muted-foreground">
-                {stats?.cotizacionesAprobadas || 0} de {stats?.cotizacionesEnviadas || 0} enviadas
+                {stats?.cotizacionesAprobadas || 0} ganadas de {stats?.cotizacionesEnviadas || 0} enviadas
               </p>
             </div>
 
@@ -307,11 +307,11 @@ const Dashboard = ({ db, navigate }) => {
               className="text-left hover:scale-105 transition-transform"
             >
               <StatCard
-                title="En Negociación"
-                value={chartData.find(item => item.name === 'En negociación')?.value || 0}
-                icon={<AlertCircle className="h-4 w-4 text-purple-600" />}
+                title="Enviadas"
+                value={chartData.find(item => item.name === 'Enviada')?.value || 0}
+                icon={<AlertCircle className="h-4 w-4 text-blue-600" />}
                 subtitle="Click para revisar"
-                className="cursor-pointer hover:border-purple-300"
+                className="cursor-pointer hover:border-blue-300"
               />
             </button>
             <button
@@ -346,8 +346,8 @@ const Dashboard = ({ db, navigate }) => {
                     >
                       <div className="flex items-center gap-3">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${index === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' :
-                            index === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
-                              'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
+                          index === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
+                            'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'
                           }`}>
                           {index + 1}
                         </div>
