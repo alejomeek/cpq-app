@@ -22,7 +22,7 @@ const InsightsPanelPro = ({ db }) => {
     try {
       const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
       const cachedQuoteCount = localStorage.getItem(CACHE_QUOTE_COUNT_KEY);
-      
+
       if (!cachedTimestamp || !cachedQuoteCount) {
         return false;
       }
@@ -31,7 +31,7 @@ const InsightsPanelPro = ({ db }) => {
       const now = Date.now();
       const cacheAge = now - parseInt(cachedTimestamp);
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-      
+
       if (cacheAge > TWENTY_FOUR_HOURS) {
         console.log('⏰ Caché expirado (más de 24 horas)');
         return false;
@@ -63,20 +63,20 @@ const InsightsPanelPro = ({ db }) => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-      
+
       if (cached && timestamp) {
         const insights = JSON.parse(cached);
         const age = Date.now() - parseInt(timestamp);
         const hoursAgo = Math.floor(age / (1000 * 60 * 60));
         const minutesAgo = Math.floor((age % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         setInsights(insights);
         setCacheInfo({
           fromCache: true,
           timestamp: parseInt(timestamp),
           age: hoursAgo > 0 ? `${hoursAgo}h` : `${minutesAgo}m`
         });
-        
+
         console.log(`💾 Insights cargados desde caché (${hoursAgo > 0 ? hoursAgo + 'h' : minutesAgo + 'm'} atrás)`);
         return true;
       }
@@ -94,13 +94,13 @@ const InsightsPanelPro = ({ db }) => {
       localStorage.setItem(CACHE_KEY, JSON.stringify(insightsData));
       localStorage.setItem(CACHE_TIMESTAMP_KEY, now.toString());
       localStorage.setItem(CACHE_QUOTE_COUNT_KEY, quoteCount.toString());
-      
+
       setCacheInfo({
         fromCache: false,
         timestamp: now,
         age: 'recién generado'
       });
-      
+
       console.log(`💾 Insights guardados en caché con ${quoteCount} cotizaciones`);
     } catch (error) {
       console.error('Error guardando caché:', error);
@@ -129,20 +129,20 @@ const InsightsPanelPro = ({ db }) => {
       const quotesRef = collection(db, "usuarios", user.uid, "cotizaciones");
       const quotesQuery = query(quotesRef, orderBy("fechaCreacion", "desc"));
       const quotesSnapshot = await getDocs(quotesQuery);
-      
+
       const todasLasCotizaciones = quotesSnapshot.docs.map(doc => {
         const data = doc.data();
-        
+
         // Convertir fechas de Firestore a formato legible
         let fechaCreacion = null;
         let vencimiento = null;
-        
+
         if (data.fechaCreacion?.toDate) {
           fechaCreacion = data.fechaCreacion.toDate();
         } else if (data.fechaCreacion instanceof Date) {
           fechaCreacion = data.fechaCreacion;
         }
-        
+
         if (data.vencimiento?.toDate) {
           vencimiento = data.vencimiento.toDate();
         } else if (data.vencimiento instanceof Date) {
@@ -183,27 +183,26 @@ const InsightsPanelPro = ({ db }) => {
       // Calcular métricas
       const cotizaciones = todasLasCotizaciones;
       const totalCotizaciones = cotizaciones.length;
-      const aprobadas = cotizaciones.filter(q => q.estado === 'Aprobada').length;
-      const rechazadas = cotizaciones.filter(q => q.estado === 'Rechazada').length;
-      const enNegociacion = cotizaciones.filter(q => q.estado === 'En negociación').length;
+      const ganadas = cotizaciones.filter(q => q.estado === 'Ganada').length;
+      const perdidas = cotizaciones.filter(q => q.estado === 'Perdida').length;
       const enviadas = cotizaciones.filter(q => q.estado === 'Enviada').length;
       const borradores = cotizaciones.filter(q => q.estado === 'Borrador').length;
 
       const totalVentas = cotizaciones
-        .filter(q => q.estado === 'Aprobada')
+        .filter(q => q.estado === 'Ganada')
         .reduce((sum, q) => sum + q.total, 0);
 
-      const tasaConversion = totalCotizaciones > 0 
-        ? (aprobadas / totalCotizaciones * 100).toFixed(1)
+      const tasaConversion = totalCotizaciones > 0
+        ? (ganadas / totalCotizaciones * 100).toFixed(1)
         : 0;
 
-      const ticketPromedio = aprobadas > 0 
-        ? totalVentas / aprobadas 
+      const ticketPromedio = ganadas > 0
+        ? totalVentas / ganadas
         : 0;
 
       // Análisis de productos
       const productosMap = new Map();
-      
+
       cotizaciones.forEach(cotizacion => {
         cotizacion.items?.forEach(prod => {
           if (!productosMap.has(prod.nombre)) {
@@ -215,13 +214,13 @@ const InsightsPanelPro = ({ db }) => {
               vecesAprobado: 0
             });
           }
-          
+
           const producto = productosMap.get(prod.nombre);
           producto.vecesCotizado++;
           producto.cantidadTotal += prod.cantidad || 0;
           producto.montoTotal += prod.subtotal || 0;
-          
-          if (cotizacion.estado === 'Aprobada') {
+
+          if (cotizacion.estado === 'Ganada') {
             producto.vecesAprobado++;
           }
         });
@@ -229,7 +228,7 @@ const InsightsPanelPro = ({ db }) => {
 
       const productosArray = Array.from(productosMap.values()).map(p => ({
         ...p,
-        tasaConversion: p.vecesCotizado > 0 
+        tasaConversion: p.vecesCotizado > 0
           ? (p.vecesAprobado / p.vecesCotizado * 100).toFixed(1)
           : 0
       }));
@@ -256,7 +255,7 @@ const InsightsPanelPro = ({ db }) => {
       const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       const cotizacionesPorDia = {};
       const aprobadasPorDia = {};
-      
+
       diasSemana.forEach(dia => {
         cotizacionesPorDia[dia] = 0;
         aprobadasPorDia[dia] = 0;
@@ -267,17 +266,17 @@ const InsightsPanelPro = ({ db }) => {
           const fecha = new Date(q.fechaCreacion);
           const dia = diasSemana[fecha.getDay()];
           cotizacionesPorDia[dia]++;
-          if (q.estado === 'Aprobada') {
+          if (q.estado === 'Ganada') {
             aprobadasPorDia[dia]++;
           }
         }
       });
 
-      // Cotizaciones urgentes
+      // Cotizaciones urgentes (solo enviadas)
       const urgentes = cotizaciones.filter(q => {
-        if (!['Enviada', 'En negociación'].includes(q.estado)) return false;
+        if (q.estado !== 'Enviada') return false;
         if (!q.vencimiento) return false;
-        
+
         const venc = new Date(q.vencimiento);
         const diasHastaVencimiento = Math.floor((venc - now) / (1000 * 60 * 60 * 24));
         return diasHastaVencimiento <= 3 && diasHastaVencimiento >= 0;
@@ -288,7 +287,7 @@ const InsightsPanelPro = ({ db }) => {
       const borradoresAntiguos = cotizaciones.filter(q => {
         if (q.estado !== 'Borrador') return false;
         if (!q.fechaCreacion) return false;
-        
+
         const fecha = new Date(q.fechaCreacion);
         const diasDesdeCreacion = Math.floor((now - fecha) / (1000 * 60 * 60 * 24));
         return diasDesdeCreacion > DIAS_BORRADOR_ANTIGUO;
@@ -298,9 +297,8 @@ const InsightsPanelPro = ({ db }) => {
         cotizaciones: {
           todas: todasLasCotizaciones,
           totalCotizaciones,
-          aprobadas,
-          rechazadas,
-          enNegociacion,
+          ganadas,
+          perdidas,
           enviadas,
           borradores,
           totalVentas,
@@ -365,7 +363,7 @@ const InsightsPanelPro = ({ db }) => {
     try {
       // 1. Obtener datos completos
       const completeData = await fetchCompleteData();
-      
+
       if (!completeData) {
         throw new Error('No se pudieron obtener los datos');
       }
@@ -375,7 +373,7 @@ const InsightsPanelPro = ({ db }) => {
       // 2. Obtener token de autenticación de Firebase
       const auth = getAuth();
       const currentUser = auth.currentUser;
-      
+
       if (!currentUser) {
         throw new Error('Usuario no autenticado');
       }
@@ -407,7 +405,7 @@ const InsightsPanelPro = ({ db }) => {
       // 4. Guardar en caché
       const quoteCount = completeData.cotizaciones.totalCotizaciones;
       saveToCache(generatedInsights, quoteCount);
-      
+
       setInsights(generatedInsights);
       setLoading(false);
 
