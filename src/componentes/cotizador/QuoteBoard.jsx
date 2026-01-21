@@ -24,10 +24,8 @@ import { ScrollArea, ScrollBar } from "@/ui/scroll-area.jsx";
 const BOARD_COLUMNS = {
   'Borrador': 'Borrador',
   'Enviada': 'Enviada',
-  'En negociación': 'En negociación',
-  'Aprobada': 'Aprobada',
-  'Rechazada': 'Rechazada',
-  'Vencida': 'Vencida',
+  'Ganada': 'Ganada',
+  'Perdida': 'Perdida',
 };
 
 // ¡CAMBIO! Ya NO recibe 'user' como prop
