@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
   Cell,
-  CartesianGrid 
+  CartesianGrid
 } from 'recharts';
 import { useTheme } from '@/ui/theme-provider';
 
@@ -20,38 +20,28 @@ const stateConfig = {
   },
   'Enviada': {
     color: 'hsl(var(--chart-2))', // Cian
-    icon: '📤',
+    icon: '📨',
     gradient: ['hsl(var(--chart-2))', 'hsl(199 89% 60%)']
   },
-  'En negociación': {
-    color: 'hsl(var(--chart-1))', // Púrpura
-    icon: '💬',
-    gradient: ['hsl(var(--chart-1))', 'hsl(262 83% 65%)']
-  },
-  'Aprobada': {
+  'Ganada': {
     color: 'hsl(142 76% 36%)', // Verde
     icon: '✅',
     gradient: ['hsl(142 76% 36%)', 'hsl(142 76% 50%)']
   },
-  'Rechazada': {
+  'Perdida': {
     color: 'hsl(var(--destructive))', // Rojo
     icon: '❌',
     gradient: ['hsl(var(--destructive))', 'hsl(0 84% 65%)']
-  },
-  'Vencida': {
-    color: 'hsl(var(--chart-5))', // Naranja
-    icon: '⏰',
-    gradient: ['hsl(var(--chart-5))', 'hsl(25 95% 60%)']
   }
 };
 
 // Tooltip personalizado mejorado
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
-  
+
   const data = payload[0].payload;
   const config = stateConfig[data.name] || {};
-  
+
   return (
     <div className="bg-popover border border-border rounded-lg shadow-lg p-3 min-w-[180px]">
       <div className="flex items-center gap-2 mb-2">
@@ -77,11 +67,11 @@ const CustomTooltip = ({ active, payload }) => {
 // Label personalizado que muestra valor y porcentaje
 const CustomLabel = (props) => {
   const { x, y, width, height, value, name, percentage } = props;
-  
+
   if (!name || value === undefined) return null;
-  
+
   const config = stateConfig[name] || {};
-  
+
   return (
     <g>
       {/* Valor numérico */}
@@ -113,7 +103,7 @@ const CustomLabel = (props) => {
 // Label del eje Y con icono y nombre
 const CustomYAxisTick = ({ x, y, payload }) => {
   const config = stateConfig[payload.value] || {};
-  
+
   return (
     <g transform={`translate(${x},${y})`}>
       <text
@@ -138,7 +128,7 @@ export const QuotesFunnelChart = ({ data }) => {
   const chartData = useMemo(() => {
     // Calcular total
     const total = data.reduce((sum, item) => sum + item.value, 0);
-    
+
     // Agregar porcentaje y ordenar de mayor a menor
     return data
       .map(item => ({
@@ -149,16 +139,16 @@ export const QuotesFunnelChart = ({ data }) => {
       .sort((a, b) => b.value - a.value); // Ordenar descendente
   }, [data]);
 
-  const tickColor = theme === 'dark' 
-    ? 'hsl(var(--muted-foreground))' 
+  const tickColor = theme === 'dark'
+    ? 'hsl(var(--muted-foreground))'
     : 'hsl(var(--foreground))';
 
   // Calcular el valor máximo y generar ticks apropiados
   const maxValue = chartData.length > 0 ? Math.max(...chartData.map(d => d.value)) : 0;
-  
+
   // Redondear hacia arriba para tener un máximo "bonito"
   const maxAxisValue = Math.ceil(maxValue * 1.1); // 10% más que el máximo para dar espacio
-  
+
   // Generar ticks - dependiendo del rango
   let xAxisTicks;
   if (maxAxisValue <= 10) {
@@ -188,14 +178,14 @@ export const QuotesFunnelChart = ({ data }) => {
             </linearGradient>
           ))}
         </defs>
-        
-        <CartesianGrid 
-          strokeDasharray="3 3" 
-          stroke="hsl(var(--border))" 
+
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="hsl(var(--border))"
           horizontal={false}
           strokeOpacity={0.3}
         />
-        
+
         <XAxis
           type="number"
           stroke={tickColor}
@@ -207,7 +197,7 @@ export const QuotesFunnelChart = ({ data }) => {
           domain={[0, maxAxisValue]}
           ticks={xAxisTicks}
         />
-        
+
         <YAxis
           type="category"
           dataKey="name"
@@ -219,9 +209,9 @@ export const QuotesFunnelChart = ({ data }) => {
           width={160}
           tick={<CustomYAxisTick />}
         />
-        
+
         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
-        
+
         <Bar
           dataKey="value"
           radius={[0, 8, 8, 0]}
@@ -229,8 +219,8 @@ export const QuotesFunnelChart = ({ data }) => {
           label={<CustomLabel />}
         >
           {chartData.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`} 
+            <Cell
+              key={`cell-${index}`}
               fill={`url(#gradient-${entry.name})`}
             />
           ))}
