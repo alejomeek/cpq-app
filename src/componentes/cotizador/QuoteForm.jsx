@@ -380,16 +380,21 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   // NUEVO: Manejar cambio de tienda y generar número
   const handleTiendaChange = async (tienda) => {
     try {
-      setQuote(prev => ({ ...prev, tienda, numero: 'Generando...' }));
       setCanSave(false);
 
       // Solo generar número si es una cotización nueva
       if (!quoteId) {
+        // Primero mostrar "Generando..."
+        setQuote(prev => ({ ...prev, tienda, numero: 'Generando...' }));
+
+        // Luego generar el número
         const quoteNumber = await getNextQuoteNumber(db, user.uid, tienda);
+
+        // Actualizar con el número generado
         setQuote(prev => ({ ...prev, numero: quoteNumber }));
         setCanSave(true);
       } else {
-        // Si está editando, mantener el número existente
+        // Si está editando, solo cambiar la tienda (mantener número existente)
         setQuote(prev => ({ ...prev, tienda }));
         setCanSave(true);
       }
