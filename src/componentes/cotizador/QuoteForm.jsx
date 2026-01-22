@@ -172,7 +172,7 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
 
         // Llamar a la Cloud Function que actúa como proxy
         const logoResponse = await fetch(
-          `https://getcompanylogo-6l3ikuseya-uc.a.run.app?userId=${user.uid}`
+          `https://us-central1-app-cpq.cloudfunctions.net/getCompanyLogo?userId=${user.uid}`
         );
 
         if (logoResponse.ok) {
