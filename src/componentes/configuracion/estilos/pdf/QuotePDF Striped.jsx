@@ -56,8 +56,8 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
   companyLogo: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
     objectFit: 'contain',
     marginBottom: 10,
   },
@@ -137,9 +137,9 @@ const styles = StyleSheet.create({
   altRow: {
     backgroundColor: colors.lightGray,
   },
-  colDescription: { width: '25%' },
-  colQty: { width: '10%', textAlign: 'center', paddingLeft: 25 },
-  colPriceUnit: { width: '25%', textAlign: 'right' },
+  colDescription: { width: '22%' },
+  colQty: { width: '10%', textAlign: 'center', paddingLeft: 40 },
+  colPriceUnit: { width: '28%', textAlign: 'right' },
   colIvaUnit: { width: '15%', textAlign: 'right' },
   colTotal: { width: '20%', textAlign: 'right' },
 
