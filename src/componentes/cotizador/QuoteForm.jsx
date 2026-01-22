@@ -639,10 +639,10 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
             <thead className="text-xs uppercase bg-muted text-muted-foreground">
               <tr>
                 <th className="px-6 py-3">Producto</th>
-                <th className="px-6 py-3 w-24">Cantidad</th>
-                <th className="px-6 py-3 w-40">Precio Unitario</th>
-                <th className="px-6 py-3 w-32">Impuestos</th>
-                <th className="px-6 py-3 w-40 text-right">Importe</th>
+                <th className="px-6 py-3 w-24">Cant.</th>
+                <th className="px-6 py-3 w-32">Precio Unit.</th>
+                <th className="px-6 py-3 w-32">IVA Unit.</th>
+                <th className="px-6 py-3 w-32 text-right">Total Línea</th>
                 <th className="px-2 py-3"></th>
               </tr>
             </thead>
@@ -656,13 +656,28 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                   </td>
                   <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" /></td>
                   <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" /></td>
-                  <td className="px-6 py-2 text-center text-foreground">
+
+                  {/* IVA Unitario */}
+                  <td className="px-6 py-2 text-right text-foreground">
                     {(() => {
                       const product = products.find(p => p.id === line.productId);
-                      return product?.exento_iva ? 'Exento' : '19% IVA';
+                      if (product?.exento_iva) return 'Exento';
+                      const ivaUnit = (line.price || 0) * 0.19;
+                      return `$${ivaUnit.toFixed(0)}`;
                     })()}
                   </td>
-                  <td className="px-6 py-2 text-right font-semibold text-foreground">${((line.quantity || 0) * (line.price || 0)).toFixed(0)}</td>
+
+                  {/* Total Línea (con IVA) */}
+                  <td className="px-6 py-2 text-right font-semibold text-foreground">
+                    {(() => {
+                      const product = products.find(p => p.id === line.productId);
+                      const precioSinIva = line.price || 0;
+                      const ivaUnit = product?.exento_iva ? 0 : (precioSinIva * 0.19);
+                      const precioConIva = precioSinIva + ivaUnit;
+                      const totalLinea = (line.quantity || 0) * precioConIva;
+                      return `$${totalLinea.toFixed(0)}`;
+                    })()}
+                  </td>
                   <td className="px-2 py-2">
                     <Button variant="ghost" size="icon" onClick={() => removeLine(index)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
@@ -684,11 +699,27 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       <div className="flex justify-end">
         <Card className="w-full max-w-sm bg-transparent border-none">
           <CardContent className="p-6 bg-card rounded-lg border space-y-4 text-card-foreground">
-            <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(0)}</span></div>
-            <div className="flex justify-between"><span>IVA 19%:</span><span>${tax.toFixed(0)}</span></div>
+            {/* Precio sin IVA */}
+            <div className="flex justify-between">
+              <span>Precio sin IVA:</span>
+              <span>${subtotal.toFixed(0)}</span>
+            </div>
 
-            {/* NUEVO: Campo de Flete */}
+            {/* IVA 19% */}
+            <div className="flex justify-between">
+              <span>IVA 19%:</span>
+              <span>${tax.toFixed(0)}</span>
+            </div>
+
+            {/* Subtotal */}
+            <div className="flex justify-between font-semibold">
+              <span>Subtotal:</span>
+              <span>${(subtotal + tax).toFixed(0)}</span>
+            </div>
+
             <Separator />
+
+            {/* Campo de Flete */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Flete</Label>
               <RadioGroup
@@ -733,7 +764,12 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
             </div>
 
             <Separator />
-            <div className="flex justify-between text-xl"><span className="font-bold">Total:</span><span className="font-bold text-primary">${total.toFixed(0)}</span></div>
+
+            {/* Total */}
+            <div className="flex justify-between text-xl">
+              <span className="font-bold">Total:</span>
+              <span className="font-bold text-primary">${total.toFixed(0)}</span>
+            </div>
           </CardContent>
         </Card>
       </div>

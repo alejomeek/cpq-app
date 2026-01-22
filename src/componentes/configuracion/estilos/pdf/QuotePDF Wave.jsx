@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
   altRow: {
     backgroundColor: colors.lightGray,
   },
-  // === Ajuste de columnas para equilibrar "Importe" ===
+  // === Columnas redistribuidas ===
   colDescription: { width: '35%' },
-  colQty: { width: '15%', textAlign: 'center' },
-  colPrice: { width: '15%', textAlign: 'right' },
-  colTax: { width: '13%', textAlign: 'center' },
-  colImporte: { width: '22%', textAlign: 'right' },
+  colQty: { width: '12%', textAlign: 'center' },
+  colPriceUnit: { width: '18%', textAlign: 'right' },
+  colIvaUnit: { width: '15%', textAlign: 'right' },
+  colTotal: { width: '20%', textAlign: 'right' },
 
   totalsBox: {
     marginTop: 20,
@@ -301,47 +301,71 @@ const QuotePDF = ({ quote, client, products = [] }) => {
       <View>
         <View style={styles.tableHeader}>
           <Text style={[styles.headerCell, styles.colDescription]}>Descripción</Text>
-          <Text style={[styles.headerCell, styles.colQty]}>Cantidad</Text>
-          <Text style={[styles.headerCell, styles.colPrice]}>Precio unitario</Text>
-          <Text style={[styles.headerCell, styles.colTax]}>Impuestos</Text>
-          <Text style={[styles.headerCell, styles.colImporte]}>Importe</Text>
+          <Text style={[styles.headerCell, styles.colQty]}>Cant.</Text>
+          <Text style={[styles.headerCell, styles.colPriceUnit]}>Precio Unit.</Text>
+          <Text style={[styles.headerCell, styles.colIvaUnit]}>IVA Unit.</Text>
+          <Text style={[styles.headerCell, styles.colTotal]}>Total Línea</Text>
         </View>
 
-        {quote.lineas.map((line, i) => (
-          <View key={i} style={[styles.tableRowWithImage, i % 2 === 1 && styles.altRow]}>
-            <View style={[styles.colDescription, styles.productInfo]}>
-              <Image
-                src={getProductImage(line.productId)}
-                style={styles.productImage}
-              />
-              <Text>{line.productName}</Text>
-            </View>
+        {quote.lineas.map((line, i) => {
+          const product = products.find(p => p.id === line.productId);
+          const precioSinIva = line.price;
+          const ivaUnitario = product?.exento_iva ? 0 : (line.price * 0.19);
+          const precioConIva = precioSinIva + ivaUnitario;
+          const totalLinea = line.quantity * precioConIva;
 
-            <Text style={[styles.colQty]}>{line.quantity.toFixed(2)}</Text>
-            <Text style={[styles.colPrice]}>{formatCurrency(line.price)}</Text>
-            <Text style={[styles.colTax]}>
-              {(() => {
-                const product = products.find(p => p.id === line.productId);
-                return product?.exento_iva ? 'Exento' : '19%';
-              })()}
-            </Text>
-            <Text style={[styles.colImporte]}>{formatCurrency(line.quantity * line.price)}</Text>
-          </View>
-        ))}
+          return (
+            <View key={i} style={[styles.tableRowWithImage, i % 2 === 1 && styles.altRow]}>
+              {/* Imagen + Descripción */}
+              <View style={[styles.colDescription, styles.productInfo]}>
+                <Image
+                  src={getProductImage(line.productId)}
+                  style={styles.productImage}
+                />
+                <Text>{line.productName}</Text>
+              </View>
+
+              {/* Cantidad */}
+              <Text style={[styles.colQty]}>{line.quantity.toFixed(0)}</Text>
+
+              {/* Precio Unitario (sin IVA) */}
+              <Text style={[styles.colPriceUnit]}>{formatCurrency(precioSinIva)}</Text>
+
+              {/* IVA Unitario */}
+              <Text style={[styles.colIvaUnit]}>
+                {product?.exento_iva ? 'Exento' : formatCurrency(ivaUnitario)}
+              </Text>
+
+              {/* Total Línea (con IVA) */}
+              <Text style={[styles.colTotal]}>{formatCurrency(totalLinea)}</Text>
+            </View>
+          );
+        })}
       </View>
 
       {/* TOTALES */}
       <View style={styles.totalsBox}>
+        {/* Precio sin IVA */}
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Base imponible</Text>
+          <Text style={styles.totalLabel}>Precio sin IVA</Text>
           <Text style={styles.totalValue}>{formatCurrency(quote.subtotal)}</Text>
         </View>
+
+        {/* IVA 19% */}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>IVA 19%</Text>
           <Text style={styles.totalValue}>{formatCurrency(quote.impuestos)}</Text>
         </View>
 
-        {/* NUEVO: Mostrar flete si existe */}
+        {/* Subtotal (Precio sin IVA + IVA) */}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Subtotal</Text>
+          <Text style={styles.totalValue}>
+            {formatCurrency(quote.subtotal + quote.impuestos)}
+          </Text>
+        </View>
+
+        {/* Flete (solo si > 0) */}
         {quote.fleteValue > 0 && (
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Flete</Text>
@@ -349,6 +373,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
           </View>
         )}
 
+        {/* Total Final */}
         <View style={styles.totalFinal}>
           <Text style={styles.totalFinalLabel}>Total</Text>
           <Text style={styles.totalFinalValue}>{formatCurrency(quote.total)}</Text>
