@@ -137,9 +137,9 @@ const styles = StyleSheet.create({
   altRow: {
     backgroundColor: colors.lightGray,
   },
-  colDescription: { width: '28%' },
-  colQty: { width: '10%', textAlign: 'center', paddingLeft: 15 },
-  colPriceUnit: { width: '22%', textAlign: 'right' },
+  colDescription: { width: '25%' },
+  colQty: { width: '10%', textAlign: 'center', paddingLeft: 25 },
+  colPriceUnit: { width: '25%', textAlign: 'right' },
   colIvaUnit: { width: '15%', textAlign: 'right' },
   colTotal: { width: '20%', textAlign: 'right' },
 
