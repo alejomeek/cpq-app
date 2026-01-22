@@ -165,8 +165,8 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      // NUEVO: Cargar logo de empresa desde Firestore
-      let companyLogoUrl = null;
+      // NUEVO: Cargar logo de empresa y convertir a base64
+      let companyLogoBase64 = null;
       try {
         const { getFirestore, doc: firestoreDoc, getDoc } = await import('firebase/firestore');
         const db = getFirestore();
@@ -177,27 +177,32 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
 
         if (companySettingsSnap.exists()) {
           const data = companySettingsSnap.data();
-          let logoUrl = data?.logo_url || null;
+          const logoUrl = data?.logo_url || null;
 
-          // WORKAROUND: Convertir URL de Firebase Storage a formato público sin token
-          // Esto evita problemas de CORS
-          if (logoUrl && logoUrl.includes('firebasestorage.googleapis.com')) {
-            // Extraer el path del archivo
-            const urlObj = new URL(logoUrl);
-            const pathMatch = urlObj.pathname.match(/\/o\/(.+)/);
-            if (pathMatch) {
-              const encodedPath = pathMatch[1].split('?')[0]; // Remover query params
-              // Construir URL pública sin token
-              companyLogoUrl = `https://firebasestorage.googleapis.com/v0/b/app-cpq.firebasestorage.app/o/${encodedPath}?alt=media`;
-            } else {
-              companyLogoUrl = logoUrl;
+          console.log('[PDF] Logo URL:', logoUrl);
+
+          if (logoUrl) {
+            // Descargar la imagen y convertirla a base64
+            try {
+              const response = await fetch(logoUrl);
+              if (response.ok) {
+                const blob = await response.blob();
+                const reader = new FileReader();
+
+                companyLogoBase64 = await new Promise((resolve, reject) => {
+                  reader.onloadend = () => resolve(reader.result);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(blob);
+                });
+
+                console.log('[PDF] Logo converted to base64 successfully');
+              } else {
+                console.warn('[PDF] Failed to fetch logo:', response.status);
+              }
+            } catch (fetchError) {
+              console.error('[PDF] Error fetching logo:', fetchError);
             }
-          } else {
-            companyLogoUrl = logoUrl;
           }
-
-          console.log('[PDF] Original logo URL:', logoUrl);
-          console.log('[PDF] Public logo URL:', companyLogoUrl);
         } else {
           console.warn('[PDF] No company settings found');
         }
@@ -212,7 +217,7 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
           subtotal,
           impuestos: tax,
           total,
-          companyLogoUrl  // ← NUEVO: Pasar logo al PDF
+          companyLogoUrl: companyLogoBase64  // Base64 en vez de URL
         }}
         client={currentClient}
         products={products}
