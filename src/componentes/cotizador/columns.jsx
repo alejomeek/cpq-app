@@ -95,7 +95,8 @@ export const createColumns = (
       const formatted = new Intl.NumberFormat("es-CO", {
         style: "currency",
         currency: "COP",
-        minimumFractionDigits: 0
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
       }).format(amount);
       return <div className="text-center font-medium">{formatted}</div>;
     },

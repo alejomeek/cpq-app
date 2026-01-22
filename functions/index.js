@@ -392,7 +392,8 @@ async function fetchAllWixProducts(apiKey, siteId) {
         precioBase: parseFloat(price) || 0,
         imagen_url: imageUrl,
         inventory: parseInt(inventory) || 0,
-        categoria: p.productType || 'General'
+        categoria: p.productType || 'General',
+        exento_iva: isExentoIVA(p.name)
       };
     });
 
@@ -411,6 +412,15 @@ async function fetchAllWixProducts(apiKey, siteId) {
 
   console.log(`🎉 Total products fetched: ${allProducts.length}`);
   return allProducts;
+}
+
+/**
+ * Función para detectar si un producto está exento de IVA
+ */
+function isExentoIVA(productName) {
+  if (!productName) return false;
+  const name = productName.toLowerCase();
+  return name.includes('libro') || name.includes('patineta');
 }
 
 /**

@@ -51,7 +51,7 @@ export const RecentQuotesTable = ({ quotes, onRowClick }) => {
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(quote.total || 0)}
+                {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(quote.total || 0)}
               </TableCell>
             </TableRow>
           ))}

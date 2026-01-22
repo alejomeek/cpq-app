@@ -235,6 +235,7 @@ const formatCurrency = (amount) => {
     style: 'currency',
     currency: 'COP',
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 };
 
@@ -318,7 +319,12 @@ const QuotePDF = ({ quote, client, products = [] }) => {
 
             <Text style={[styles.colQty]}>{line.quantity.toFixed(2)}</Text>
             <Text style={[styles.colPrice]}>{formatCurrency(line.price)}</Text>
-            <Text style={[styles.colTax]}>19%</Text>
+            <Text style={[styles.colTax]}>
+              {(() => {
+                const product = products.find(p => p.id === line.productId);
+                return product?.exento_iva ? 'Exento' : '19%';
+              })()}
+            </Text>
             <Text style={[styles.colImporte]}>{formatCurrency(line.quantity * line.price)}</Text>
           </View>
         ))}
@@ -334,6 +340,15 @@ const QuotePDF = ({ quote, client, products = [] }) => {
           <Text style={styles.totalLabel}>IVA 19%</Text>
           <Text style={styles.totalValue}>{formatCurrency(quote.impuestos)}</Text>
         </View>
+
+        {/* NUEVO: Mostrar flete si existe */}
+        {quote.fleteValue > 0 && (
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Flete</Text>
+            <Text style={styles.totalValue}>{formatCurrency(quote.fleteValue)}</Text>
+          </View>
+        )}
+
         <View style={styles.totalFinal}>
           <Text style={styles.totalFinalLabel}>Total</Text>
           <Text style={styles.totalFinalValue}>{formatCurrency(quote.total)}</Text>

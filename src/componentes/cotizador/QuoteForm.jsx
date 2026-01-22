@@ -62,7 +62,7 @@ const ProductCatalogModal = ({ products, onAddToCart, onClose, initialCart }) =>
               <div className="flex-grow">
                 <h3 className="font-bold text-foreground">{product.nombre}</h3>
                 <p className="text-sm mt-1">SKU: {product.sku || 'N/A'}</p>
-                <p className="text-xl font-semibold text-primary mt-2">${(product.precioBase || 0).toFixed(2)}</p>
+                <p className="text-xl font-semibold text-primary mt-2">${(product.precioBase || 0).toFixed(0)}</p>
               </div>
               <div className="mt-4">
                 {cart[product.id] > 0 ? (
@@ -470,13 +470,26 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     }
   };
 
-  // --- Función de Cálculo (MODIFICADA para incluir flete) ---
+  // --- Función de Cálculo (MODIFICADA para incluir flete e IVA selectivo) ---
   const calculateTotals = () => {
     const lineasValidas = Array.isArray(quote.lineas) ? quote.lineas : [];
-    const subtotal = lineasValidas.reduce((acc, line) => acc + ((parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0)), 0);
-    const tax = subtotal * 0.19;
+
+    // Subtotal (sin cambios)
+    const subtotal = lineasValidas.reduce((acc, line) =>
+      acc + ((parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0)), 0
+    );
+
+    // IVA solo para productos NO exentos
+    const tax = lineasValidas.reduce((acc, line) => {
+      const product = products.find(p => p.id === line.productId);
+      if (product?.exento_iva) return acc; // Sin IVA para productos exentos
+      const lineTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0);
+      return acc + (lineTotal * 0.19);
+    }, 0);
+
     const fleteValue = quote.fleteType === 'incluido' ? 0 : (parseFloat(quote.fleteValue) || 0);
     const total = subtotal + tax + fleteValue;
+
     return { subtotal, tax, fleteValue, total };
   };
   const { subtotal, tax, fleteValue, total } = calculateTotals();
@@ -643,8 +656,13 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                   </td>
                   <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" /></td>
                   <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" /></td>
-                  <td className="px-6 py-2 text-center text-foreground">19% IVA</td>
-                  <td className="px-6 py-2 text-right font-semibold text-foreground">${((line.quantity || 0) * (line.price || 0)).toFixed(2)}</td>
+                  <td className="px-6 py-2 text-center text-foreground">
+                    {(() => {
+                      const product = products.find(p => p.id === line.productId);
+                      return product?.exento_iva ? 'Exento' : '19% IVA';
+                    })()}
+                  </td>
+                  <td className="px-6 py-2 text-right font-semibold text-foreground">${((line.quantity || 0) * (line.price || 0)).toFixed(0)}</td>
                   <td className="px-2 py-2">
                     <Button variant="ghost" size="icon" onClick={() => removeLine(index)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
@@ -666,8 +684,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       <div className="flex justify-end">
         <Card className="w-full max-w-sm bg-transparent border-none">
           <CardContent className="p-6 bg-card rounded-lg border space-y-4 text-card-foreground">
-            <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>IVA 19%:</span><span>${tax.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(0)}</span></div>
+            <div className="flex justify-between"><span>IVA 19%:</span><span>${tax.toFixed(0)}</span></div>
 
             {/* NUEVO: Campo de Flete */}
             <Separator />
@@ -709,13 +727,13 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
               {quote.fleteType === 'manual' && quote.fleteValue > 0 && (
                 <div className="flex justify-between text-sm">
                   <span>Flete:</span>
-                  <span>${fleteValue.toFixed(2)}</span>
+                  <span>${fleteValue.toFixed(0)}</span>
                 </div>
               )}
             </div>
 
             <Separator />
-            <div className="flex justify-between text-xl"><span className="font-bold">Total:</span><span className="font-bold text-primary">${total.toFixed(2)}</span></div>
+            <div className="flex justify-between text-xl"><span className="font-bold">Total:</span><span className="font-bold text-primary">${total.toFixed(0)}</span></div>
           </CardContent>
         </Card>
       </div>
