@@ -152,6 +152,7 @@ const InlineProductSearch = ({ products, onProductSelect, onCancel, onCreateNew,
 
 // --- Sub-componente: DownloadPDFButton ---
 const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, total, quoteStyleName, products }) => {
+  const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const styleToUse = quoteStyleName || 'Bubble';
 
@@ -164,7 +165,33 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      const doc = <QuotePDF quote={{ ...quote, subtotal, impuestos: tax, total }} client={currentClient} products={products} styleName={styleToUse} />;
+      // NUEVO: Cargar logo de empresa desde Firestore
+      let companyLogoUrl = null;
+      try {
+        const { getFirestore, doc: firestoreDoc, getDoc } = await import('firebase/firestore');
+        const db = getFirestore();
+        const companySettingsRef = firestoreDoc(db, 'usuarios', user.uid, 'settings', 'company');
+        const companySettingsSnap = await getDoc(companySettingsRef);
+        if (companySettingsSnap.exists()) {
+          companyLogoUrl = companySettingsSnap.data()?.logo_url || null;
+        }
+      } catch (logoError) {
+        console.warn('Error loading company logo:', logoError);
+        // Continuar sin logo si hay error
+      }
+
+      const doc = <QuotePDF
+        quote={{
+          ...quote,
+          subtotal,
+          impuestos: tax,
+          total,
+          companyLogoUrl  // ← NUEVO: Pasar logo al PDF
+        }}
+        client={currentClient}
+        products={products}
+        styleName={styleToUse}
+      />;
       const blob = await pdf(doc).toBlob();
 
       const url = URL.createObjectURL(blob);

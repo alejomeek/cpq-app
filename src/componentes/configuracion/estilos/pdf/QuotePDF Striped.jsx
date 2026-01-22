@@ -46,6 +46,12 @@ const styles = StyleSheet.create({
     color: colors.gray,
     lineHeight: 1.3,
   },
+  companyLogo: {
+    width: 80,
+    height: 80,
+    objectFit: 'contain',
+    marginBottom: 10,
+  },
 
   // --- TÍTULO PRINCIPAL ---
   quoteTitle: {
@@ -55,7 +61,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  // --- ENCABEZADO PRINCIPAL (Emisión / Cliente / Comercial) ---
+  // --- ENCABEZADO PRINCIPAL (Emisión / Cliente) ---
   quoteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -63,7 +69,7 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   infoSection: {
-    width: '30%',
+    width: '35%',
   },
   quoteLabel: {
     fontSize: 9,
@@ -78,15 +84,8 @@ const styles = StyleSheet.create({
 
   // --- CLIENTE (alineación izquierda) ---
   clientSection: {
-    width: '38%',
-    textAlign: 'left', // 👈 Alineación corregida
-  },
-
-  // --- COMERCIAL (ligeramente más a la derecha) ---
-  commercialSection: {
-    width: '25%', // 👈 más estrecho para crear equilibrio visual
+    width: '55%',
     textAlign: 'left',
-    marginLeft: 10, // 👈 lo empuja un poco a la derecha
   },
 
   // --- TABLA ---
@@ -124,12 +123,13 @@ const styles = StyleSheet.create({
   productInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingRight: 8,
   },
   altRow: {
     backgroundColor: colors.lightGray,
   },
-  colDescription: { width: '35%' },
-  colQty: { width: '12%', textAlign: 'center' },
+  colDescription: { width: '32%' },
+  colQty: { width: '15%', textAlign: 'center' },
   colPriceUnit: { width: '18%', textAlign: 'right' },
   colIvaUnit: { width: '15%', textAlign: 'right' },
   colTotal: { width: '20%', textAlign: 'right' },
@@ -230,6 +230,11 @@ const QuotePDF = ({ quote, client, products = [] }) => {
     <Page size="A4" style={styles.page}>
       {/* ENCABEZADO EMPRESA */}
       <View style={styles.companyInfo}>
+        {/* Logo de empresa (si existe) */}
+        {quote.companyLogoUrl && (
+          <Image src={quote.companyLogoUrl} style={styles.companyLogo} />
+        )}
+
         <Text style={styles.companyName}>DIDACTICOS JUGANDO Y EDUCANDO SAS</Text>
         <Text style={styles.companyDetails}>AVENIDA 19 114 A 22</Text>
         <Text style={styles.companyDetails}>BOGOTÁ</Text>
@@ -238,9 +243,9 @@ const QuotePDF = ({ quote, client, products = [] }) => {
       </View>
 
       {/* TÍTULO PRINCIPAL */}
-      <Text style={styles.quoteTitle}>Cotización n° {quote.numero}</Text>
+      <Text style={styles.quoteTitle}>{quote.numero}</Text>
 
-      {/* INFORMACIÓN PRINCIPAL: Emisión / Cliente / Comercial */}
+      {/* INFORMACIÓN PRINCIPAL: Emisión / Cliente */}
       <View style={styles.quoteHeader}>
         {/* Emisión y Vencimiento */}
         <View style={styles.infoSection}>
@@ -268,12 +273,6 @@ const QuotePDF = ({ quote, client, products = [] }) => {
             }`}
           </Text>
         </View>
-
-        {/* Comercial (más hacia la derecha) */}
-        <View style={styles.commercialSection}>
-          <Text style={styles.quoteLabel}>Comercial</Text>
-          <Text style={styles.quoteValue}>{quote.comercialNombre || 'No asignado'}</Text>
-        </View>
       </View>
 
       {/* TABLA */}
@@ -288,9 +287,16 @@ const QuotePDF = ({ quote, client, products = [] }) => {
 
         {quote.lineas.map((line, i) => {
           const product = products.find(p => p.id === line.productId);
-          const precioSinIva = line.price;
-          const ivaUnitario = product?.exento_iva ? 0 : (line.price * 0.19);
-          const precioConIva = precioSinIva + ivaUnitario;
+
+          // CORRECCIÓN: line.price ya viene CON IVA incluido desde Wix
+          // Necesitamos calcular el precio SIN IVA
+          const precioConIvaOriginal = line.price;
+          const precioSinIva = product?.exento_iva
+            ? precioConIvaOriginal  // Si está exento, el precio es el mismo
+            : precioConIvaOriginal / 1.19;  // Si tiene IVA, dividir por 1.19
+
+          const ivaUnitario = product?.exento_iva ? 0 : (precioSinIva * 0.19);
+          const precioConIva = precioSinIva + ivaUnitario;  // Esto debería ser igual a line.price
           const totalLinea = line.quantity * precioConIva;
 
           return (
@@ -307,7 +313,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
               {/* Cantidad */}
               <Text style={[styles.colQty]}>{line.quantity.toFixed(0)}</Text>
 
-              {/* Precio Unitario (sin IVA) */}
+              {/* Precio Unitario (SIN IVA) */}
               <Text style={[styles.colPriceUnit]}>{formatCurrency(precioSinIva)}</Text>
 
               {/* IVA Unitario */}
@@ -315,7 +321,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
                 {product?.exento_iva ? 'Exento' : formatCurrency(ivaUnitario)}
               </Text>
 
-              {/* Total Línea (con IVA) */}
+              {/* Total Línea (Precio sin IVA + IVA) */}
               <Text style={[styles.colTotal]}>{formatCurrency(totalLinea)}</Text>
             </View>
           );
@@ -369,8 +375,10 @@ const QuotePDF = ({ quote, client, products = [] }) => {
 
       {/* PIE DE PÁGINA */}
       <View style={styles.footer} fixed>
-        <Text>Cotización emitida por Didácticos Jugando y Educando SAS</Text>
-        <Text>Página 1 / 1</Text>
+        <Text>Generado por Cepequ</Text>
+        <Text render={({ pageNumber, totalPages }) => (
+          `Página ${pageNumber} / ${totalPages}`
+        )} />
       </View>
     </Page>
   </Document>
