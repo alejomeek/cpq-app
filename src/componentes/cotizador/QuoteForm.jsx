@@ -177,8 +177,27 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
 
         if (companySettingsSnap.exists()) {
           const data = companySettingsSnap.data();
-          companyLogoUrl = data?.logo_url || null;
-          console.log('[PDF] Company logo URL:', companyLogoUrl);
+          let logoUrl = data?.logo_url || null;
+
+          // WORKAROUND: Convertir URL de Firebase Storage a formato público sin token
+          // Esto evita problemas de CORS
+          if (logoUrl && logoUrl.includes('firebasestorage.googleapis.com')) {
+            // Extraer el path del archivo
+            const urlObj = new URL(logoUrl);
+            const pathMatch = urlObj.pathname.match(/\/o\/(.+)/);
+            if (pathMatch) {
+              const encodedPath = pathMatch[1].split('?')[0]; // Remover query params
+              // Construir URL pública sin token
+              companyLogoUrl = `https://firebasestorage.googleapis.com/v0/b/app-cpq.firebasestorage.app/o/${encodedPath}?alt=media`;
+            } else {
+              companyLogoUrl = logoUrl;
+            }
+          } else {
+            companyLogoUrl = logoUrl;
+          }
+
+          console.log('[PDF] Original logo URL:', logoUrl);
+          console.log('[PDF] Public logo URL:', companyLogoUrl);
         } else {
           console.warn('[PDF] No company settings found');
         }
