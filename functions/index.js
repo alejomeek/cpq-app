@@ -533,3 +533,68 @@ exports.syncWixProducts = onRequest({
     });
   }
 });
+
+/**
+ * Cloud Function para servir el logo de empresa como base64
+ * Esto evita problemas de CORS al generar PDFs
+ */
+exports.getCompanyLogo = onRequest({
+  cors: true
+}, async (req, res) => {
+  console.log('🖼️ Solicitando logo de empresa...');
+
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      res.status(400).json({ error: 'Missing userId' });
+      return;
+    }
+
+    // Obtener URL del logo desde Firestore
+    const db = admin.firestore();
+    const companySettingsRef = db.doc(`usuarios/${userId}/settings/company`);
+    const companySettingsSnap = await companySettingsRef.get();
+
+    if (!companySettingsSnap.exists) {
+      res.status(404).json({ error: 'Company settings not found' });
+      return;
+    }
+
+    const logoUrl = companySettingsSnap.data()?.logo_url;
+
+    if (!logoUrl) {
+      res.status(404).json({ error: 'Logo URL not found' });
+      return;
+    }
+
+    console.log('📥 Descargando logo desde:', logoUrl);
+
+    // Descargar el logo desde Firebase Storage
+    const response = await fetch(logoUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch logo: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+    const mimeType = response.headers.get('content-type') || 'image/png';
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    console.log('✅ Logo convertido a base64');
+
+    res.status(200).json({
+      success: true,
+      logoBase64: dataUrl
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo logo:', error);
+    res.status(500).json({
+      error: 'Failed to get logo',
+      message: error.message
+    });
+  }
+});

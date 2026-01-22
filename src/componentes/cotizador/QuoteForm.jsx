@@ -165,49 +165,27 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      // NUEVO: Cargar logo de empresa y convertir a base64
+      // NUEVO: Cargar logo usando Cloud Function (evita CORS)
       let companyLogoBase64 = null;
       try {
-        const { getFirestore, doc: firestoreDoc, getDoc } = await import('firebase/firestore');
-        const db = getFirestore();
-        const companySettingsRef = firestoreDoc(db, 'usuarios', user.uid, 'settings', 'company');
-        const companySettingsSnap = await getDoc(companySettingsRef);
+        console.log('[PDF] Requesting logo via Cloud Function...');
 
-        console.log('[PDF] Company settings exists:', companySettingsSnap.exists());
+        // Llamar a la Cloud Function que actúa como proxy
+        const logoResponse = await fetch(
+          `https://getcompanylogo-6l3ikuseya-uc.a.run.app?userId=${user.uid}`
+        );
 
-        if (companySettingsSnap.exists()) {
-          const data = companySettingsSnap.data();
-          const logoUrl = data?.logo_url || null;
-
-          console.log('[PDF] Logo URL:', logoUrl);
-
-          if (logoUrl) {
-            // Descargar la imagen y convertirla a base64
-            try {
-              const response = await fetch(logoUrl);
-              if (response.ok) {
-                const blob = await response.blob();
-                const reader = new FileReader();
-
-                companyLogoBase64 = await new Promise((resolve, reject) => {
-                  reader.onloadend = () => resolve(reader.result);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(blob);
-                });
-
-                console.log('[PDF] Logo converted to base64 successfully');
-              } else {
-                console.warn('[PDF] Failed to fetch logo:', response.status);
-              }
-            } catch (fetchError) {
-              console.error('[PDF] Error fetching logo:', fetchError);
-            }
+        if (logoResponse.ok) {
+          const logoData = await logoResponse.json();
+          if (logoData.success && logoData.logoBase64) {
+            companyLogoBase64 = logoData.logoBase64;
+            console.log('[PDF] Logo loaded successfully via Cloud Function');
           }
         } else {
-          console.warn('[PDF] No company settings found');
+          console.warn('[PDF] Cloud Function returned error:', logoResponse.status);
         }
       } catch (logoError) {
-        console.error('[PDF] Error loading company logo:', logoError);
+        console.error('[PDF] Error loading logo via Cloud Function:', logoError);
         // Continuar sin logo si hay error
       }
 
