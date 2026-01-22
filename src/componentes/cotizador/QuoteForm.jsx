@@ -172,11 +172,18 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
         const db = getFirestore();
         const companySettingsRef = firestoreDoc(db, 'usuarios', user.uid, 'settings', 'company');
         const companySettingsSnap = await getDoc(companySettingsRef);
+
+        console.log('[PDF] Company settings exists:', companySettingsSnap.exists());
+
         if (companySettingsSnap.exists()) {
-          companyLogoUrl = companySettingsSnap.data()?.logo_url || null;
+          const data = companySettingsSnap.data();
+          companyLogoUrl = data?.logo_url || null;
+          console.log('[PDF] Company logo URL:', companyLogoUrl);
+        } else {
+          console.warn('[PDF] No company settings found');
         }
       } catch (logoError) {
-        console.warn('Error loading company logo:', logoError);
+        console.error('[PDF] Error loading company logo:', logoError);
         // Continuar sin logo si hay error
       }
 
