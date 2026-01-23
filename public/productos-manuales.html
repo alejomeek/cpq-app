@@ -373,6 +373,22 @@
                 const productsRef = collection(db, 'usuarios', userId, 'productos');
                 const snapshot = await getDocs(productsRef);
 
+                // DEBUG: Mostrar TODOS los productos primero
+                const allProductsDebug = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        nombre: data.nombre,
+                        sku: data.sku,
+                        hasLastSync: !!data.lastSync,
+                        lastSyncType: data.lastSync ? typeof data.lastSync : 'undefined'
+                    };
+                });
+
+                console.log('=== DEBUG: TODOS LOS PRODUCTOS ===');
+                console.table(allProductsDebug);
+                console.log(`Total productos en DB: ${allProductsDebug.length}`);
+
                 // Filtrar solo productos manuales (sin lastSync)
                 allProducts = snapshot.docs
                     .map(doc => ({ id: doc.id, ...doc.data() }))

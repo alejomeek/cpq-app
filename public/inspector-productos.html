@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspector de Productos - CPQ App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Monaco', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            height: calc(100vh - 40px);
+        }
+
+        .left-panel {
+            border-right: 2px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .search-box {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stats {
+            padding: 15px 20px;
+            background: #fff;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+        }
+
+        .stat {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: #6c757d;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .products-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .product-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .product-item:hover {
+            background: #f8f9fa;
+        }
+
+        .product-item.selected {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .product-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid #e9ecef;
+            flex-shrink: 0;
+        }
+
+        .product-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .product-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #212529;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-sku {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .product-badges {
+            display: flex;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-wix {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .badge-manual {
+            background: #ffc107;
+            color: #856404;
+        }
+
+        .inspector-header {
+            background: #2d2d2d;
+            color: white;
+            padding: 20px 30px;
+            border-bottom: 2px solid #444;
+        }
+
+        .inspector-header h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .inspector-header p {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .inspector-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d4d4d4;
+        }
+
+        .json-key {
+            color: #9cdcfe;
+        }
+
+        .json-string {
+            color: #ce9178;
+        }
+
+        .json-number {
+            color: #b5cea8;
+        }
+
+        .json-boolean {
+            color: #569cd6;
+        }
+
+        .json-null {
+            color: #808080;
+        }
+
+        .field-row {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #252526;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+        }
+
+        .field-row.important {
+            border-left-color: #ffc107;
+            background: #2d2a1f;
+        }
+
+        .field-name {
+            color: #9cdcfe;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .field-value {
+            color: #d4d4d4;
+            word-break: break-all;
+        }
+
+        .field-type {
+            color: #808080;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .inspector-content {
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Panel Izquierdo: Lista de Productos -->
+        <div class="left-panel">
+            <div class="header">
+                <h1>🔍 Inspector de Productos</h1>
+                <p>Busca y visualiza todos los atributos de Firebase</p>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre, SKU o descripción..."
+                    onkeyup="filterProducts()">
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value" id="totalCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Filtrados:</span>
+                    <span class="stat-value" id="filteredCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Con Wix:</span>
+                    <span class="stat-value" id="wixCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Manuales:</span>
+                    <span class="stat-value" id="manualCount">0</span>
+                </div>
+            </div>
+
+            <div id="loadingContainer" class="loading">
+                <div class="spinner"></div>
+                <p>Cargando productos...</p>
+            </div>
+
+            <div id="productsList" class="products-list" style="display: none;"></div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <p>No se encontraron productos</p>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Inspector de Atributos -->
+        <div class="right-panel">
+            <div class="inspector-header">
+                <h2 id="inspectorTitle">Selecciona un producto</h2>
+                <p id="inspectorSubtitle">Click en un producto para ver sus atributos</p>
+            </div>
+
+            <div class="inspector-content" id="inspectorContent">
+                <div class="empty-state" style="color: #aaa;">
+                    <p>👈 Selecciona un producto de la lista</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cargar configuración de Firebase -->
+    <script src="/firebase-config.js"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = window.firebaseConfig || {
+            apiKey: "AIzaSyDkRiI_h6qBdlMrjHIstbxOSpSSA1fl9M4",
+            authDomain: "app-cpq.firebaseapp.com",
+            projectId: "app-cpq",
+            storageBucket: "app-cpq.firebasestorage.app",
+            messagingSenderId: "144495366011",
+            appId: "1:144495366011:web:3e9ebcc37369f25a40f7de"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let allProducts = [];
+        let filteredProducts = [];
+        let selectedProduct = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log('Usuario autenticado:', user.uid);
+                await loadProducts(user.uid);
+            } else {
+                alert('No estás autenticado. Por favor, inicia sesión primero.');
+            }
+        });
+
+        async function loadProducts(userId) {
+            try {
+                const productsRef = collection(db, 'usuarios', userId, 'productos');
+                const snapshot = await getDocs(productsRef);
+
+                allProducts = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                filteredProducts = [...allProducts];
+
+                console.log(`Total productos cargados: ${allProducts.length}`);
+
+                renderProducts();
+                updateStats();
+
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('productsList').style.display = 'block';
+            } catch (error) {
+                console.error('Error cargando productos:', error);
+                alert('Error al cargar productos: ' + error.message);
+            }
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('productsList');
+            container.innerHTML = '';
+
+            if (filteredProducts.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('productsList').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('productsList').style.display = 'block';
+
+            filteredProducts.forEach(product => {
+                const div = document.createElement('div');
+                div.className = 'product-item';
+                if (selectedProduct?.id === product.id) {
+                    div.classList.add('selected');
+                }
+
+                const isWix = !!product.lastSync;
+
+                div.innerHTML = `
+                    <img 
+                        src="${product.imagen_url || 'https://placehold.co/50x50/e5e7eb/6b7280?text=?'}" 
+                        alt="${product.nombre}" 
+                        class="product-image"
+                        onerror="this.src='https://placehold.co/50x50/e5e7eb/6b7280?text=Error'"
+                    >
+                    <div class="product-info">
+                        <div class="product-name">${product.nombre || 'Sin nombre'}</div>
+                        <div class="product-sku">${product.sku || 'Sin SKU'}</div>
+                    </div>
+                    <div class="product-badges">
+                        <span class="badge ${isWix ? 'badge-wix' : 'badge-manual'}">
+                            ${isWix ? 'Wix' : 'Manual'}
+                        </span>
+                    </div>
+                `;
+
+                div.onclick = () => selectProduct(product);
+                container.appendChild(div);
+            });
+        }
+
+        function selectProduct(product) {
+            selectedProduct = product;
+            renderProducts();
+            renderInspector(product);
+        }
+
+        function renderInspector(product) {
+            document.getElementById('inspectorTitle').textContent = product.nombre || 'Sin nombre';
+            document.getElementById('inspectorSubtitle').textContent = `ID: ${product.id}`;
+
+            const content = document.getElementById('inspectorContent');
+
+            // Campos importantes a resaltar
+            const importantFields = ['lastSync', 'imagen_url', 'sku', 'nombre', 'precioBase', 'precio_iva_incluido'];
+
+            let html = '<button class="copy-btn" onclick="copyJSON()">📋 Copiar JSON</button>';
+
+            Object.keys(product).sort().forEach(key => {
+                const value = product[key];
+                const isImportant = importantFields.includes(key);
+
+                let displayValue = value;
+                let valueType = typeof value;
+
+                // Formatear valores especiales
+                if (value === null) {
+                    displayValue = 'null';
+                    valueType = 'null';
+                } else if (value === undefined) {
+                    displayValue = 'undefined';
+                    valueType = 'undefined';
+                } else if (typeof value === 'object' && value.toDate) {
+                    // Timestamp de Firestore
+                    displayValue = value.toDate().toISOString();
+                    valueType = 'timestamp';
+                } else if (typeof value === 'object') {
+                    displayValue = JSON.stringify(value, null, 2);
+                    valueType = 'object';
+                }
+
+                html += `
+                    <div class="field-row ${isImportant ? 'important' : ''}">
+                        <div class="field-name">
+                            ${key}
+                            <span class="field-type">(${valueType})</span>
+                        </div>
+                        <div class="field-value">${displayValue}</div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+        }
+
+        window.copyJSON = function () {
+            const json = JSON.stringify(selectedProduct, null, 2);
+            navigator.clipboard.writeText(json);
+            alert('JSON copiado al portapapeles');
+        };
+
+        function updateStats() {
+            const wixCount = allProducts.filter(p => p.lastSync).length;
+            const manualCount = allProducts.length - wixCount;
+
+            document.getElementById('totalCount').textContent = allProducts.length;
+            document.getElementById('filteredCount').textContent = filteredProducts.length;
+            document.getElementById('wixCount').textContent = wixCount;
+            document.getElementById('manualCount').textContent = manualCount;
+        }
+
+        window.filterProducts = function () {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredProducts = allProducts.filter(product => {
+                const nombre = (product.nombre || '').toLowerCase();
+                const sku = (product.sku || '').toLowerCase();
+                const descripcion = (product.descripcion || '').toLowerCase();
+                return nombre.includes(searchTerm) ||
+                    sku.includes(searchTerm) ||
+                    descripcion.includes(searchTerm);
+            });
+
+            renderProducts();
+            document.getElementById('filteredCount').textContent = filteredProducts.length;
+        };
+    </script>
+</body>
+
+</html>
