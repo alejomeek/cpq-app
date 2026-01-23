@@ -422,6 +422,14 @@
 
                 console.log(`Total productos cargados: ${allProducts.length}`);
 
+                // DEBUG: Mostrar primeros 20 productos
+                console.log('=== PRIMEROS 20 PRODUCTOS ===');
+                console.table(allProducts.slice(0, 20).map(p => ({
+                    nombre: p.nombre,
+                    sku: p.sku,
+                    hasLastSync: !!p.lastSync
+                })));
+
                 renderProducts();
                 updateStats();
 
@@ -431,6 +439,15 @@
                 console.error('Error cargando productos:', error);
                 alert('Error al cargar productos: ' + error.message);
             }
+        }
+
+        // Función para normalizar texto (quitar acentos, minúsculas)
+        function normalizeText(text) {
+            if (!text) return '';
+            return text
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
         }
 
         function renderProducts() {
@@ -549,16 +566,18 @@
         }
 
         window.filterProducts = function () {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const searchTerm = normalizeText(document.getElementById('searchInput').value);
 
             filteredProducts = allProducts.filter(product => {
-                const nombre = (product.nombre || '').toLowerCase();
-                const sku = (product.sku || '').toLowerCase();
-                const descripcion = (product.descripcion || '').toLowerCase();
+                const nombre = normalizeText(product.nombre || '');
+                const sku = normalizeText(product.sku || '');
+                const descripcion = normalizeText(product.descripcion || '');
                 return nombre.includes(searchTerm) ||
                     sku.includes(searchTerm) ||
                     descripcion.includes(searchTerm);
             });
+
+            console.log(`Búsqueda: "${searchTerm}" - Resultados: ${filteredProducts.length}`);
 
             renderProducts();
             document.getElementById('filteredCount').textContent = filteredProducts.length;
