@@ -420,20 +420,6 @@
 
                 filteredProducts = [...allProducts];
 
-                console.log(`Total productos cargados: ${allProducts.length}`);
-
-                // DEBUG: Mostrar primeros 20 productos
-                console.log('=== PRIMEROS 20 PRODUCTOS ===');
-                console.table(allProducts.slice(0, 20).map(p => ({
-                    nombre: p.nombre,
-                    sku: p.sku,
-                    hasLastSync: !!p.lastSync
-                })));
-
-                // Exponer para debugging en consola
-                window.allProducts = allProducts;
-                console.log('💡 Tip: Usa window.allProducts en la consola para buscar productos');
-
                 renderProducts();
                 updateStats();
 
@@ -443,19 +429,6 @@
                 console.error('Error cargando productos:', error);
                 alert('Error al cargar productos: ' + error.message);
             }
-        }
-
-        // Función para normalizar texto (quitar acentos, minúsculas, caracteres especiales)
-        function normalizeText(text) {
-            if (!text) return '';
-            return text
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
-                .replace(/×/g, 'x') // Reemplazar × por x
-                .replace(/[^\w\s]/g, ' ') // Reemplazar caracteres especiales por espacios
-                .replace(/\s+/g, ' ') // Normalizar espacios múltiples
-                .trim();
         }
 
         function renderProducts() {
@@ -581,8 +554,6 @@
                     product.descripcion?.toLowerCase().includes(query) ||
                     product.sku?.toLowerCase().includes(query));
             });
-
-            console.log(`Búsqueda: "${query}" - Resultados: ${filteredProducts.length}`);
 
             renderProducts();
             document.getElementById('filteredCount').textContent = filteredProducts.length;
