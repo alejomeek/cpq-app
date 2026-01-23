@@ -328,6 +328,22 @@
                     onkeyup="filterProducts()">
             </div>
 
+            <div
+                style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #e9ecef; display: flex; gap: 10px;">
+                <button onclick="setFilter('all')" id="filterAll"
+                    style="padding: 8px 16px; border: 2px solid #667eea; background: #667eea; color: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                    Todos
+                </button>
+                <button onclick="setFilter('manual')" id="filterManual"
+                    style="padding: 8px 16px; border: 2px solid #e9ecef; background: white; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                    Solo Manuales
+                </button>
+                <button onclick="setFilter('wix')" id="filterWix"
+                    style="padding: 8px 16px; border: 2px solid #e9ecef; background: white; color: #495057; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                    Solo Wix
+                </button>
+            </div>
+
             <div class="stats">
                 <div class="stat">
                     <span class="stat-label">Total:</span>
@@ -398,6 +414,7 @@
         let allProducts = [];
         let filteredProducts = [];
         let selectedProduct = null;
+        let currentFilter = 'all'; // 'all', 'manual', 'wix'
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -546,13 +563,51 @@
             document.getElementById('manualCount').textContent = manualCount;
         }
 
+        window.setFilter = function (filter) {
+            currentFilter = filter;
+
+            // Update button styles
+            const buttons = {
+                all: document.getElementById('filterAll'),
+                manual: document.getElementById('filterManual'),
+                wix: document.getElementById('filterWix')
+            };
+
+            Object.keys(buttons).forEach(key => {
+                if (key === filter) {
+                    buttons[key].style.background = '#667eea';
+                    buttons[key].style.color = 'white';
+                    buttons[key].style.borderColor = '#667eea';
+                } else {
+                    buttons[key].style.background = 'white';
+                    buttons[key].style.color = '#495057';
+                    buttons[key].style.borderColor = '#e9ecef';
+                }
+            });
+
+            filterProducts();
+        };
+
         window.filterProducts = function () {
             const query = document.getElementById('searchInput').value.toLowerCase();
 
+            // Apply both search and filter
             filteredProducts = allProducts.filter(product => {
-                return (product.nombre?.toLowerCase().includes(query) ||
+                // Search filter
+                const matchesSearch = !query ||
+                    product.nombre?.toLowerCase().includes(query) ||
                     product.descripcion?.toLowerCase().includes(query) ||
-                    product.sku?.toLowerCase().includes(query));
+                    product.sku?.toLowerCase().includes(query);
+
+                // Type filter
+                let matchesType = true;
+                if (currentFilter === 'manual') {
+                    matchesType = !product.lastSync;
+                } else if (currentFilter === 'wix') {
+                    matchesType = !!product.lastSync;
+                }
+
+                return matchesSearch && matchesType;
             });
 
             renderProducts();
