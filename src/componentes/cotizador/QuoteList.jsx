@@ -22,11 +22,11 @@ const SearchIcon = () => <svg className="w-4 h-4 text-muted-foreground" fill="no
 
 // --- normalizarTexto (sin cambios) ---
 const normalizarTexto = (str) => {
-  if (!str) return '';
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 };
 
 const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, loadingClients }) => {
@@ -60,14 +60,14 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
         setItemsToDelete([quoteId]);
         setDialogOpen(true);
     };
-    
+
     // NUEVO: Función para abrir dialog de email
     const handleSendEmail = (quote, client) => {
         setSelectedQuote(quote);
         setSelectedClient(client);
         setEmailDialogOpen(true);
     };
-    
+
     // NUEVO: Función para cargar productos
     const fetchProducts = useCallback(async () => {
         if (!user || !user.uid) return;
@@ -92,10 +92,10 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
                 products: products,
                 quoteStyleName: globalConfig?.quoteStyle || 'Bubble'
             });
-            
+
             // Recargar cotizaciones para reflejar el cambio de estado
             fetchQuotes();
-            
+
             setNotification({
                 type: 'success',
                 title: 'Email enviado',
@@ -119,7 +119,7 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
                 setLoadingConfig(false);
                 return;
             }
-            
+
             setLoadingConfig(true);
             try {
                 // ¡CAMBIO! Ruta anidada con user.uid
@@ -157,9 +157,10 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
             clients,
             quoteStyle,
             handleSendEmail, // Pasar función de email
-            products // NUEVO: Pasar productos para imágenes en PDF
+            products, // NUEVO: Pasar productos para imágenes en PDF
+            user?.uid // NUEVO: Pasar userId para cargar logo
         );
-    }, [onEditQuote, clients, globalConfig, products]);
+    }, [onEditQuote, clients, globalConfig, products, user]);
 
     // ¡CAMBIO! fetchQuotes ahora obtiene cotizaciones DEL USUARIO
     const fetchQuotes = useCallback(async () => {
@@ -194,23 +195,23 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
         }
     }, [db, user]); // ¡CAMBIO! Añadir 'user' a las dependencias
 
-    useEffect(() => { 
-        fetchQuotes(); 
+    useEffect(() => {
+        fetchQuotes();
     }, [fetchQuotes]);
 
     const quotesFiltrados = useMemo(() => {
-      const terminoNormalizado = normalizarTexto(filtroGlobal);
-      if (!terminoNormalizado) {
-        return quotes;
-      }
-      return quotes.filter(quote => {
-        const numeroNormalizado = normalizarTexto(quote.numero);
-        const clienteNormalizado = normalizarTexto(quote.clienteNombre);
-        return (
-          numeroNormalizado.includes(terminoNormalizado) ||
-          clienteNormalizado.includes(terminoNormalizado)
-        );
-      });
+        const terminoNormalizado = normalizarTexto(filtroGlobal);
+        if (!terminoNormalizado) {
+            return quotes;
+        }
+        return quotes.filter(quote => {
+            const numeroNormalizado = normalizarTexto(quote.numero);
+            const clienteNormalizado = normalizarTexto(quote.clienteNombre);
+            return (
+                numeroNormalizado.includes(terminoNormalizado) ||
+                clienteNormalizado.includes(terminoNormalizado)
+            );
+        });
     }, [quotes, filtroGlobal]);
 
     const handleDeleteSelected = (selectedRows) => {
@@ -262,8 +263,8 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
             />
 
             <div className="flex justify-between items-center mb-4">
-                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Cotizaciones</h1>
-                 <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Cotizaciones</h1>
+                <div className="flex items-center gap-4">
                     <div className="flex items-center bg-muted rounded-lg p-1 border">
                         <button onClick={() => setView('list')} className={`p-1.5 rounded-md ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Vista de Lista"><ListIcon /></button>
                         <button onClick={() => setView('card')} className={`p-1.5 rounded-md ${view === 'card' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Vista de Tarjetas"><CardsIcon /></button>
@@ -274,13 +275,13 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
             </div>
 
             <div className="mb-4 relative">
-              <Input placeholder="Filtrar por número o cliente..." value={filtroGlobal} onChange={(e) => setFiltroGlobal(e.target.value)} className="max-w-sm pl-10" />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2"><SearchIcon /></div>
+                <Input placeholder="Filtrar por número o cliente..." value={filtroGlobal} onChange={(e) => setFiltroGlobal(e.target.value)} className="max-w-sm pl-10" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2"><SearchIcon /></div>
             </div>
 
             {quotesFiltrados.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground">
-                  {filtroGlobal ? "No hay resultados para tu búsqueda." : "No hay cotizaciones."}
+                    {filtroGlobal ? "No hay resultados para tu búsqueda." : "No hay cotizaciones."}
                 </div>
             ) : view === 'list' ? (
                 <DataTable
@@ -296,14 +297,14 @@ const QuoteList = ({ db, onAddNewQuote, onEditQuote, setNotification, clients, l
                 />
             ) : (
                 <QuoteBoard
-                  quotes={quotesFiltrados}
-                  setQuotes={setQuotes}
-                  db={db}
-                  setNotification={setNotification}
-                  fetchQuotes={fetchQuotes}
+                    quotes={quotesFiltrados}
+                    setQuotes={setQuotes}
+                    db={db}
+                    setNotification={setNotification}
+                    fetchQuotes={fetchQuotes}
                 />
             )}
-            
+
             {/* NUEVO: Dialog de Envío de Email */}
             {emailDialogOpen && (
                 <SendEmailDialog
