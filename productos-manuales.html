@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos Manuales - CPQ App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 0 15px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            padding: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+
+        tbody tr {
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .product-image {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #212529;
+        }
+
+        .product-sku {
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .price {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-manual {
+            background: #ffc107;
+            color: #856404;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            margin: 20px 30px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Productos Manuales</h1>
+            <p>Productos creados manualmente (sin sincronización de Wix)</p>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre o SKU..."
+                    onkeyup="filterProducts()">
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="filteredCount">0</div>
+                    <div class="stat-label">Filtrados</div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="exportToCSV()">
+                📥 Exportar CSV
+            </button>
+
+            <button class="btn btn-danger" id="deleteBtn" onclick="deleteSelected()" disabled>
+                🗑️ Eliminar Seleccionados
+            </button>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div id="loadingContainer" class="loading">
+            <div class="spinner"></div>
+            <p>Cargando productos manuales...</p>
+        </div>
+
+        <div id="tableContainer" class="table-container" style="display: none;">
+            <table id="productsTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>SKU</th>
+                        <th>Precio</th>
+                        <th>Categoría</th>
+                        <th>Inventario</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="productsBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                </path>
+            </svg>
+            <h3>No hay productos manuales</h3>
+            <p>Todos los productos han sido sincronizados desde Wix</p>
+        </div>
+    </div>
+
+    <!-- Cargar configuración de Firebase -->
+    <script src="/firebase-config.js"></script>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Configuración de Firebase (con fallback si no está en window)
+        const firebaseConfig = window.firebaseConfig || {
+            apiKey: "AIzaSyDkRiI_h6qBdlMrjHIstbxOSpSSA1fl9M4",
+            authDomain: "app-cpq.firebaseapp.com",
+            projectId: "app-cpq",
+            storageBucket: "app-cpq.firebasestorage.app",
+            messagingSenderId: "144495366011",
+            appId: "1:144495366011:web:3e9ebcc37369f25a40f7de"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let allProducts = [];
+        let filteredProducts = [];
+        let selectedProducts = new Set();
+
+        // Esperar autenticación
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log('Usuario autenticado:', user.uid);
+                await loadManualProducts(user.uid);
+            } else {
+                showError('No estás autenticado. Por favor, inicia sesión primero.');
+            }
+        });
+
+        async function loadManualProducts(userId) {
+            try {
+                const productsRef = collection(db, 'usuarios', userId, 'productos');
+                const snapshot = await getDocs(productsRef);
+
+                // Filtrar solo productos manuales (sin lastSync)
+                allProducts = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(product => !product.lastSync);
+
+                filteredProducts = [...allProducts];
+
+                console.log(`Productos manuales encontrados: ${allProducts.length}`);
+
+                renderProducts();
+                updateStats();
+
+                document.getElementById('loadingContainer').style.display = 'none';
+
+                if (allProducts.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                } else {
+                    document.getElementById('tableContainer').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error cargando productos:', error);
+                showError('Error al cargar productos: ' + error.message);
+                document.getElementById('loadingContainer').style.display = 'none';
+            }
+        }
+
+        function renderProducts() {
+            const tbody = document.getElementById('productsBody');
+            tbody.innerHTML = '';
+
+            filteredProducts.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <input 
+                            type="checkbox" 
+                            class="checkbox product-checkbox" 
+                            data-id="${product.id}"
+                            onchange="updateDeleteButton()"
+                            ${selectedProducts.has(product.id) ? 'checked' : ''}
+                        >
+                    </td>
+                    <td>
+                        <img 
+                            src="${product.imagen_url || 'https://placehold.co/60x60/e5e7eb/6b7280?text=Sin+Imagen'}" 
+                            alt="${product.nombre}" 
+                            class="product-image"
+                            onerror="this.src='https://placehold.co/60x60/e5e7eb/6b7280?text=Error'"
+                        >
+                    </td>
+                    <td>
+                        <div class="product-name">${product.nombre || 'Sin nombre'}</div>
+                        <div class="product-sku">${product.descripcion || ''}</div>
+                    </td>
+                    <td>${product.sku || 'N/A'}</td>
+                    <td class="price">$${(product.precioBase || 0).toLocaleString('es-CO')}</td>
+                    <td>${product.categoria || 'General'}</td>
+                    <td>${product.inventory || 0}</td>
+                    <td><span class="badge badge-manual">Manual</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = allProducts.length;
+            document.getElementById('filteredCount').textContent = filteredProducts.length;
+        }
+
+        window.filterProducts = function () {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredProducts = allProducts.filter(product => {
+                const nombre = (product.nombre || '').toLowerCase();
+                const sku = (product.sku || '').toLowerCase();
+                return nombre.includes(searchTerm) || sku.includes(searchTerm);
+            });
+
+            renderProducts();
+            updateStats();
+        };
+
+        window.toggleSelectAll = function () {
+            const selectAll = document.getElementById('selectAll').checked;
+            const checkboxes = document.querySelectorAll('.product-checkbox');
+
+            selectedProducts.clear();
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll;
+                if (selectAll) {
+                    selectedProducts.add(cb.dataset.id);
+                }
+            });
+
+            updateDeleteButton();
+        };
+
+        window.updateDeleteButton = function () {
+            const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+            selectedProducts.clear();
+            checkboxes.forEach(cb => selectedProducts.add(cb.dataset.id));
+
+            const deleteBtn = document.getElementById('deleteBtn');
+            deleteBtn.disabled = selectedProducts.size === 0;
+            deleteBtn.textContent = `🗑️ Eliminar ${selectedProducts.size > 0 ? `(${selectedProducts.size})` : 'Seleccionados'}`;
+        };
+
+        window.deleteSelected = async function () {
+            if (selectedProducts.size === 0) return;
+
+            if (!confirm(`¿Estás seguro de eliminar ${selectedProducts.size} producto(s)? Esta acción no se puede deshacer.`)) {
+                return;
+            }
+
+            try {
+                const user = auth.currentUser;
+                if (!user) throw new Error('No autenticado');
+
+                for (const productId of selectedProducts) {
+                    await deleteDoc(doc(db, 'usuarios', user.uid, 'productos', productId));
+                }
+
+                alert(`${selectedProducts.size} producto(s) eliminado(s) exitosamente`);
+                selectedProducts.clear();
+                await loadManualProducts(user.uid);
+            } catch (error) {
+                console.error('Error eliminando productos:', error);
+                showError('Error al eliminar productos: ' + error.message);
+            }
+        };
+
+        window.exportToCSV = function () {
+            if (filteredProducts.length === 0) {
+                alert('No hay productos para exportar');
+                return;
+            }
+
+            const headers = ['ID', 'Nombre', 'SKU', 'Precio', 'Categoría', 'Inventario', 'Descripción'];
+            const rows = filteredProducts.map(p => [
+                p.id,
+                p.nombre || '',
+                p.sku || '',
+                p.precioBase || 0,
+                p.categoria || '',
+                p.inventory || 0,
+                (p.descripcion || '').replace(/,/g, ';')
+            ]);
+
+            const csv = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `productos-manuales-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+
+</html>
