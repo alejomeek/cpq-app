@@ -441,13 +441,17 @@
             }
         }
 
-        // Función para normalizar texto (quitar acentos, minúsculas)
+        // Función para normalizar texto (quitar acentos, minúsculas, caracteres especiales)
         function normalizeText(text) {
             if (!text) return '';
             return text
                 .toLowerCase()
                 .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '');
+                .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+                .replace(/×/g, 'x') // Reemplazar × por x
+                .replace(/[^\w\s]/g, ' ') // Reemplazar caracteres especiales por espacios
+                .replace(/\s+/g, ' ') // Normalizar espacios múltiples
+                .trim();
         }
 
         function renderProducts() {
@@ -566,18 +570,15 @@
         }
 
         window.filterProducts = function () {
-            const searchTerm = normalizeText(document.getElementById('searchInput').value);
+            const query = document.getElementById('searchInput').value.toLowerCase();
 
             filteredProducts = allProducts.filter(product => {
-                const nombre = normalizeText(product.nombre || '');
-                const sku = normalizeText(product.sku || '');
-                const descripcion = normalizeText(product.descripcion || '');
-                return nombre.includes(searchTerm) ||
-                    sku.includes(searchTerm) ||
-                    descripcion.includes(searchTerm);
+                return (product.nombre?.toLowerCase().includes(query) ||
+                    product.descripcion?.toLowerCase().includes(query) ||
+                    product.sku?.toLowerCase().includes(query));
             });
 
-            console.log(`Búsqueda: "${searchTerm}" - Resultados: ${filteredProducts.length}`);
+            console.log(`Búsqueda: "${query}" - Resultados: ${filteredProducts.length}`);
 
             renderProducts();
             document.getElementById('filteredCount').textContent = filteredProducts.length;
