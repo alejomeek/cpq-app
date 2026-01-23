@@ -430,6 +430,10 @@
                     hasLastSync: !!p.lastSync
                 })));
 
+                // Exponer para debugging en consola
+                window.allProducts = allProducts;
+                console.log('💡 Tip: Usa window.allProducts en la consola para buscar productos');
+
                 renderProducts();
                 updateStats();
 
