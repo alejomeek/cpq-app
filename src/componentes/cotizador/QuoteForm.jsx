@@ -165,29 +165,9 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      // NUEVO: Cargar logo usando Cloud Function (evita CORS)
-      let companyLogoBase64 = null;
-      try {
-        console.log('[PDF] Requesting logo via Cloud Function...');
-
-        // Llamar a la Cloud Function que actúa como proxy
-        const logoResponse = await fetch(
-          `https://us-central1-app-cpq.cloudfunctions.net/getCompanyLogo?userId=${user.uid}`
-        );
-
-        if (logoResponse.ok) {
-          const logoData = await logoResponse.json();
-          if (logoData.success && logoData.logoBase64) {
-            companyLogoBase64 = logoData.logoBase64;
-            console.log('[PDF] Logo loaded successfully via Cloud Function');
-          }
-        } else {
-          console.warn('[PDF] Cloud Function returned error:', logoResponse.status);
-        }
-      } catch (logoError) {
-        console.error('[PDF] Error loading logo via Cloud Function:', logoError);
-        // Continuar sin logo si hay error
-      }
+      // Cargar logo directamente desde Wix para mayor velocidad
+      const logoUrl = "https://static.wixstatic.com/media/7909ff_fb58218a20af4d04b6b325b43056b7b2~mv2.png/v1/fill/w_287,h_61,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo_versi%C3%83%C2%B3n_final_JYE.png";
+      const companyLogoBase64 = logoUrl;
 
       const doc = <QuotePDF
         quote={{

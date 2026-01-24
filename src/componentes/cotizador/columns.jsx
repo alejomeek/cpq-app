@@ -146,24 +146,9 @@ export const createColumns = (
                     }
 
                     try {
-                      // Cargar logo usando Cloud Function
-                      let companyLogoBase64 = null;
-                      try {
-                        if (userId) {
-                          const logoResponse = await fetch(
-                            `https://us-central1-app-cpq.cloudfunctions.net/getCompanyLogo?userId=${userId}`
-                          );
-
-                          if (logoResponse.ok) {
-                            const logoData = await logoResponse.json();
-                            if (logoData.success && logoData.logoBase64) {
-                              companyLogoBase64 = logoData.logoBase64;
-                            }
-                          }
-                        }
-                      } catch (logoError) {
-                        console.error('Error loading logo:', logoError);
-                      }
+                      // Cargar logo directamente desde Wix para mayor velocidad
+                      const logoUrl = "https://static.wixstatic.com/media/7909ff_fb58218a20af4d04b6b325b43056b7b2~mv2.png/v1/fill/w_287,h_61,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo_versi%C3%83%C2%B3n_final_JYE.png";
+                      let companyLogoBase64 = logoUrl;
 
                       // Generar PDF con logo
                       const { pdf } = await import('@react-pdf/renderer');
