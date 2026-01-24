@@ -85,7 +85,7 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDelete }) => {
                 Editar
               </Button>
             )}
-            {onDelete && (
+            {!product.lastSync && onDelete && (
               <Button
                 onClick={() => {
                   onDelete(product);

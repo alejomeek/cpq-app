@@ -72,7 +72,7 @@ const ProductCard = ({ product, onClick, onEdit, onDuplicate, onDelete }) => {
               <Eye className="h-4 w-4 mr-1" />
               Ver
             </Button>
-            {onEdit && (
+            {!product.lastSync && onEdit && (
               <Button
                 size="sm"
                 variant="secondary"
@@ -110,7 +110,7 @@ const ProductCard = ({ product, onClick, onEdit, onDuplicate, onDelete }) => {
                 <Eye className="mr-2 h-4 w-4" />
                 Ver detalles
               </DropdownMenuItem>
-              {onEdit && (
+              {!product.lastSync && onEdit && (
                 <DropdownMenuItem onClick={(e) => handleActionClick(e, () => onEdit(product))}>
                   <Edit className="mr-2 h-4 w-4" />
                   Editar
@@ -122,9 +122,9 @@ const ProductCard = ({ product, onClick, onEdit, onDuplicate, onDelete }) => {
                   Duplicar
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              {onDelete && (
-                <DropdownMenuItem 
+              {!product.lastSync && <DropdownMenuSeparator />}
+              {!product.lastSync && onDelete && (
+                <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={(e) => handleActionClick(e, () => onDelete(product))}
                 >

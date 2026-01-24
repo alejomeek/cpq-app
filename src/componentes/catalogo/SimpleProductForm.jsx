@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/ui/button.jsx';
@@ -7,16 +7,17 @@ import { Input } from '@/ui/input.jsx';
 import { Textarea } from '@/ui/textarea.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card.jsx';
 
-const SimpleProductForm = ({ db, onBack, onSave }) => {
+const SimpleProductForm = ({ db, product: initialProduct, onBack, onSave }) => {
   const { user } = useAuth();
 
   const [product, setProduct] = useState({
-    nombre: '',
-    descripcion: '',
-    sku: '',
-    precioBase: 0,
-    exento_iva: false,
-    imagen_url: ''
+    id: initialProduct?.id || null,
+    nombre: initialProduct?.nombre || '',
+    descripcion: initialProduct?.descripcion || '',
+    sku: initialProduct?.sku || '',
+    precioBase: initialProduct?.precioBase || 0,
+    exento_iva: initialProduct?.exento_iva || false,
+    imagen_url: initialProduct?.imagen_url || ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [skuError, setSkuError] = useState('');
@@ -34,6 +35,12 @@ const SimpleProductForm = ({ db, onBack, onSave }) => {
     const productsRef = collection(db, 'usuarios', user.uid, 'productos');
     const q = query(productsRef, where('sku', '==', sku.trim()));
     const snapshot = await getDocs(q);
+
+    // Si estamos editando, excluir el producto actual de la validación
+    if (product.id) {
+      const otherProducts = snapshot.docs.filter(doc => doc.id !== product.id);
+      return otherProducts.length === 0;
+    }
 
     return snapshot.empty; // true si no existe, false si ya existe
   };
@@ -122,12 +129,19 @@ const SimpleProductForm = ({ db, onBack, onSave }) => {
         imagen_url: imagen_url,
         inventory: 0,
         categoria: 'physical',
-        fechaCreacion: serverTimestamp(),
         fechaActualizacion: serverTimestamp(),
         // NO incluir lastSync (para identificar como manual)
       };
 
-      await addDoc(collection(db, "usuarios", user.uid, "productos"), productToSave);
+      if (product.id) {
+        // Actualizar producto existente
+        await setDoc(doc(db, "usuarios", user.uid, "productos", product.id), productToSave, { merge: true });
+      } else {
+        // Crear nuevo producto
+        productToSave.fechaCreacion = serverTimestamp();
+        await addDoc(collection(db, "usuarios", user.uid, "productos"), productToSave);
+      }
+
       onSave();
     } catch (err) {
       console.error("Error al guardar el producto:", err);
@@ -139,7 +153,9 @@ const SimpleProductForm = ({ db, onBack, onSave }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-foreground">Crear Producto</h2>
+          <h2 className="text-2xl font-bold text-foreground">
+            {product.id ? 'Editar Producto' : 'Crear Producto'}
+          </h2>
           <Button type="button" variant="ghost" onClick={onBack}>
             ← Volver a la lista
           </Button>
