@@ -9,19 +9,17 @@ import {
 import { Badge } from '@/ui/badge.jsx';
 import { Button } from '@/ui/button.jsx';
 import { Separator } from '@/ui/separator.jsx';
-import { 
-  Edit, 
-  Copy, 
-  Trash2, 
+import {
+  Edit,
+  Trash2,
   Package,
   DollarSign,
   Tag,
   FileText,
-  Calendar,
-  TrendingUp
+  Calendar
 } from 'lucide-react';
 
-const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDelete }) => {
+const ProductDetails = ({ product, open, onOpenChange, onEdit, onDelete }) => {
   if (!product) return null;
 
   const formatCurrency = (value) => {
@@ -53,12 +51,6 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDe
     }
   };
 
-  // Calcular métricas
-  const ganancia = (product.precioBase || 0) - (product.costo || 0);
-  const margen = product.precioBase > 0 
-    ? ((ganancia / product.precioBase) * 100) 
-    : 0;
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
@@ -73,7 +65,7 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDe
           {/* Imagen */}
           <div className="relative h-64 w-full overflow-hidden rounded-lg bg-muted">
             <img
-              src={product.imagenUrl || 'https://placehold.co/600x400/1e293b/94a3b8?text=Sin+Imagen'}
+              src={product.imagen_url || 'https://placehold.co/600x400/1e293b/94a3b8?text=Sin+Imagen'}
               alt={product.nombre}
               className="h-full w-full object-cover"
               onError={(e) => {
@@ -84,7 +76,7 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDe
 
           {/* Acciones rápidas */}
           <div className="flex gap-2">
-            {onEdit && (
+            {!product.lastSync && onEdit && (
               <Button onClick={() => {
                 onEdit(product);
                 onOpenChange(false);
@@ -93,21 +85,12 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDe
                 Editar
               </Button>
             )}
-            {onDuplicate && (
-              <Button onClick={() => {
-                onDuplicate(product);
-                onOpenChange(false);
-              }} variant="outline" className="flex-1">
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicar
-              </Button>
-            )}
             {onDelete && (
-              <Button 
+              <Button
                 onClick={() => {
                   onDelete(product);
                   onOpenChange(false);
-                }} 
+                }}
                 variant="destructive"
               >
                 <Trash2 className="h-4 w-4" />
@@ -160,44 +143,18 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDuplicate, onDe
 
           <Separator />
 
-          {/* Precios y márgenes */}
+          {/* Precio */}
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Precios y Márgenes
+              Precio
             </h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-primary/5 rounded-lg">
-                <p className="text-sm text-muted-foreground">Precio de Venta</p>
-                <p className="text-2xl font-bold mt-1">
-                  {formatCurrency(product.precioBase)}
-                </p>
-              </div>
 
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Costo</p>
-                <p className="text-2xl font-bold mt-1">
-                  {formatCurrency(product.costo)}
-                </p>
-              </div>
-
-              <div className="p-4 bg-green-500/10 rounded-lg">
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <TrendingUp className="h-4 w-4" />
-                  Ganancia
-                </p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
-                  {formatCurrency(ganancia)}
-                </p>
-              </div>
-
-              <div className="p-4 bg-blue-500/10 rounded-lg">
-                <p className="text-sm text-muted-foreground">Margen</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {margen.toFixed(1)}%
-                </p>
-              </div>
+            <div className="p-4 bg-primary/5 rounded-lg">
+              <p className="text-sm text-muted-foreground">Precio</p>
+              <p className="text-2xl font-bold mt-1">
+                {formatCurrency(product.precioBase)}
+              </p>
             </div>
           </div>
 
