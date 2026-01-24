@@ -35,11 +35,9 @@ const QuoteCard = React.forwardRef(({ quote, isDragging, ...props }, ref) => {
       className="bg-card p-4 rounded-lg border h-full flex flex-col justify-between transition-colors hover:bg-accent"
     >
       {/* Cabecera de la tarjeta */}
-      <div className="flex justify-between items-start">
-        <div>
-          {/* --- ¡CAMBIO! text-white -> text-card-foreground --- */}
+      <div className="flex justify-between items-start gap-2">
+        <div className="overflow-hidden flex-1 min-w-0">
           <h3 className="font-bold text-card-foreground truncate">{quote.numero}</h3>
-          {/* --- ¡CAMBIO! text-slate-400 -> text-muted-foreground --- */}
           <p className="text-sm text-muted-foreground truncate">{quote.clienteNombre}</p>
         </div>
         <span className={getStatusBadge(quote.estado)}>{quote.estado}</span>
@@ -51,7 +49,7 @@ const QuoteCard = React.forwardRef(({ quote, isDragging, ...props }, ref) => {
         <span className="text-xs text-muted-foreground">{formattedDate}</span>
         {/* --- ¡CAMBIO! text-white -> text-card-foreground --- */}
         <span className="font-semibold text-card-foreground">
-          ${(quote.total || 0).toFixed(2)}
+          ${(quote.total || 0).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </span>
       </div>
     </div>
