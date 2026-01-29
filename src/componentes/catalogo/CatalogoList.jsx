@@ -41,7 +41,7 @@ const CatalogoList = ({ products, loading, navigate, onAddProduct, onEditProduct
                                 <div className="mt-4 flex justify-between items-end">
                                     <span className="text-sm font-medium text-gray-500">SKU: {product.sku || 'N/A'}</span>
                                     <button onClick={() => onEditProduct(product)} className="text-xs text-indigo-400 hover:underline">Editar</button>
-                                    <p className="text-2xl font-bold text-indigo-400">${(product.precioBase || 0).toFixed(2)}</p>
+                                    <p className="text-2xl font-bold text-indigo-400">${((product.precio_iva_incluido || product.precioBase) || 0).toFixed(2)}</p>
                                 </div>
                             </div>
                         ))

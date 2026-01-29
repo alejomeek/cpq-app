@@ -1,0 +1,32 @@
+[
+  {
+    "sku": "JUE-001",
+    "nombre": "Rompecabezas de Mapamundi 500pz",
+    "precio": 45000,
+    "inventario": 120,
+    "imagen": "https://static.wixstatic.com/media/mapamundi.jpg",
+    "categoria": "physical",
+    "wix_id": "mock-id-1",
+    "descripcion": "Rompecabezas educativo de 500 piezas."
+  },
+  {
+    "sku": "EDU-204",
+    "nombre": "Set de Bloques Lógicos de Madera",
+    "precio": 89900,
+    "inventario": 45,
+    "imagen": "https://static.wixstatic.com/media/bloques.jpg",
+    "categoria": "physical",
+    "wix_id": "mock-id-2",
+    "descripcion": "48 piezas de madera para lógica matemática."
+  },
+  {
+    "sku": "ART-55",
+    "nombre": "Kit de Pintura Dactilar",
+    "precio": 25000,
+    "inventario": 300,
+    "imagen": "https://static.wixstatic.com/media/pintura.jpg",
+    "categoria": "physical",
+    "wix_id": "mock-id-3",
+    "descripcion": "Set de 6 colores no tóxicos."
+  }
+]

@@ -209,9 +209,9 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
         case 'name':
           return (a.nombre || '').localeCompare(b.nombre || '');
         case 'price-asc':
-          return (a.precioBase || 0) - (b.precioBase || 0);
+          return ((a.precio_iva_incluido || a.precioBase) || 0) - ((b.precio_iva_incluido || b.precioBase) || 0);
         case 'price-desc':
-          return (b.precioBase || 0) - (a.precioBase || 0);
+          return ((b.precio_iva_incluido || b.precioBase) || 0) - ((a.precio_iva_incluido || a.precioBase) || 0);
         case 'newest':
           return (b.fechaCreacion?.toMillis() || 0) - (a.fechaCreacion?.toMillis() || 0);
         default:

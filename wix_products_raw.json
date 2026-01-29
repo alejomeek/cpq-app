@@ -1,0 +1,386 @@
+[
+  {
+    "id": "629e1463-6d4c-9253-91fb-904e4d25b817",
+    "name": "Carro Montable Rojo Para Niños",
+    "slug": "carro-montable-rojo-para-niños",
+    "visible": false,
+    "productType": "physical",
+    "description": "<p><strong>12 meses +</strong><br>¡Prepárate para horas de diversión sobre ruedas! Este carro montable con diseño deportivo es perfecto para que los más pequeños se desplacen con estilo y seguridad. Su estructura resistente y el respaldo ergonómico ofrecen comodidad y apoyo al andar, mientras que el volante con bocina agrega emoción a cada aventura.<br><br>Ideal para fomentar la coordinación y el equilibrio, este vehículo de juguete cuenta con un tablero ilustrado que simula un panel real, haciendo del juego una experiencia más inmersiva. ¡Perfecto para explorar tanto en interiores como exteriores mientras se divierten como verdaderos conductores!</p>",
+    "sku": "26805",
+    "weight": 0,
+    "weightRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "stock": {
+      "trackInventory": true,
+      "quantity": 0,
+      "inStock": false,
+      "inventoryStatus": "OUT_OF_STOCK"
+    },
+    "price": {
+      "currency": "COP",
+      "price": 79900,
+      "discountedPrice": 63920,
+      "formatted": {
+        "price": "79.900,00$",
+        "discountedPrice": "63.920,00$"
+      }
+    },
+    "priceData": {
+      "currency": "COP",
+      "price": 79900,
+      "discountedPrice": 63920,
+      "formatted": {
+        "price": "79.900,00$",
+        "discountedPrice": "63.920,00$"
+      }
+    },
+    "convertedPriceData": {
+      "currency": "COP",
+      "price": 79900,
+      "discountedPrice": 63920,
+      "formatted": {
+        "price": "79.900,00$",
+        "discountedPrice": "63.920,00$"
+      }
+    },
+    "priceRange": {
+      "minValue": 79900,
+      "maxValue": 79900
+    },
+    "costRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "additionalInfoSections": [
+      {
+        "title": "Tamaño",
+        "description": "<p>46x 35x 20cm</p>"
+      }
+    ],
+    "ribbons": [],
+    "media": {
+      "mainMedia": {
+        "thumbnail": {
+          "url": "https://static.wixstatic.com/media/3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+          "width": 50,
+          "height": 50
+        },
+        "mediaType": "image",
+        "title": "46x 35x 20cm.jpg",
+        "image": {
+          "url": "https://static.wixstatic.com/media/3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg/v1/fit/w_1200,h_994,q_90/file.jpg",
+          "width": 1200,
+          "height": 994
+        },
+        "id": "3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg"
+      },
+      "items": [
+        {
+          "thumbnail": {
+            "url": "https://static.wixstatic.com/media/3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+            "width": 50,
+            "height": 50
+          },
+          "mediaType": "image",
+          "title": "46x 35x 20cm.jpg",
+          "image": {
+            "url": "https://static.wixstatic.com/media/3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg/v1/fit/w_1200,h_994,q_90/file.jpg",
+            "width": 1200,
+            "height": 994
+          },
+          "id": "3f86e4_11b2b587635541598225de27c4dd84f3~mv2.jpg"
+        }
+      ]
+    },
+    "customTextFields": [],
+    "manageVariants": false,
+    "productOptions": [],
+    "productPageUrl": {
+      "base": "https://www.jugandoyeducando.com/",
+      "path": "/product-page/carro-montable-rojo-para-niños"
+    },
+    "numericId": "1751058220678000",
+    "inventoryItemId": "9d61eb9c-92b3-6dac-6e04-6fb1b2da47e8",
+    "discount": {
+      "type": "PERCENT",
+      "value": 20
+    },
+    "collectionIds": [
+      "f710d625-422c-4e28-ef09-222caf88ace1",
+      "74e7f595-5f4d-c672-b0eb-30fff89f690b",
+      "00000000-000000-000000-000000000001"
+    ],
+    "variants": [],
+    "lastUpdated": "2026-01-27T01:45:53.916Z",
+    "createdDate": "2025-06-27T21:03:40.678Z",
+    "ribbon": "",
+    "exportProductId": "product_629e1463-6d4c-9253-91fb-904e4d25b817"
+  },
+  {
+    "id": "0276e270-8d20-9cc7-76ef-7fcd51d3615a",
+    "name": "Mochila De Panda Con Estampado De Arcoíris Niños",
+    "slug": "mochila-de-panda-con-estampado-de-arcoíris-niños",
+    "visible": true,
+    "productType": "physical",
+    "description": "<p><strong>2 años +</strong><br>Esta encantadora mochila infantil es perfecta para los más pequeños. Con un diseño alegre de pandas y arcoíris, es ideal para acompañar a tu hijo en sus aventuras diarias. Fabricada en material resistente y con colores vibrantes, esta mochila combina estilo y funcionalidad para llevar lo esencial con facilidad.<br><br>Sus tirantes acolchados y ajustables garantizan comodidad, mientras que el respaldo de malla transpirable mantiene fresca la espalda del niño. Además, cuenta con un compartimento amplio y un bolsillo frontal para organizar los útiles escolares, juguetes o artículos personales.<br><br>Ideal para el colegio, paseos o actividades extracurriculares, esta mochila de panda es el accesorio perfecto para los pequeños que adoran los estampados divertidos y coloridos.</p>",
+    "sku": "24650",
+    "weight": 0,
+    "weightRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "stock": {
+      "trackInventory": true,
+      "quantity": 1,
+      "inStock": true,
+      "inventoryStatus": "IN_STOCK"
+    },
+    "price": {
+      "currency": "COP",
+      "price": 59900,
+      "discountedPrice": 59900,
+      "formatted": {
+        "price": "59.900,00$",
+        "discountedPrice": "59.900,00$"
+      }
+    },
+    "priceData": {
+      "currency": "COP",
+      "price": 59900,
+      "discountedPrice": 59900,
+      "formatted": {
+        "price": "59.900,00$",
+        "discountedPrice": "59.900,00$"
+      }
+    },
+    "convertedPriceData": {
+      "currency": "COP",
+      "price": 59900,
+      "discountedPrice": 59900,
+      "formatted": {
+        "price": "59.900,00$",
+        "discountedPrice": "59.900,00$"
+      }
+    },
+    "priceRange": {
+      "minValue": 59900,
+      "maxValue": 59900
+    },
+    "costRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "additionalInfoSections": [],
+    "ribbons": [],
+    "media": {
+      "mainMedia": {
+        "thumbnail": {
+          "url": "https://static.wixstatic.com/media/3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+          "width": 50,
+          "height": 50
+        },
+        "mediaType": "image",
+        "title": "13d7434a-df75-4402-baa1-6a6b4ada98f5.jpg",
+        "image": {
+          "url": "https://static.wixstatic.com/media/3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg/v1/fit/w_900,h_1200,q_90/file.jpg",
+          "width": 900,
+          "height": 1200
+        },
+        "id": "3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg"
+      },
+      "items": [
+        {
+          "thumbnail": {
+            "url": "https://static.wixstatic.com/media/3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+            "width": 50,
+            "height": 50
+          },
+          "mediaType": "image",
+          "title": "13d7434a-df75-4402-baa1-6a6b4ada98f5.jpg",
+          "image": {
+            "url": "https://static.wixstatic.com/media/3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg/v1/fit/w_900,h_1200,q_90/file.jpg",
+            "width": 900,
+            "height": 1200
+          },
+          "id": "3f86e4_00893b303880431387ce73d14d45ef85~mv2.jpg"
+        },
+        {
+          "thumbnail": {
+            "url": "https://static.wixstatic.com/media/3f86e4_fb46f3ff19b84f73add0e5e6156b9ced~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+            "width": 50,
+            "height": 50
+          },
+          "mediaType": "image",
+          "title": "502dcd3d-b169-4e16-acf5-8304e9a22c2d (1).jpg",
+          "image": {
+            "url": "https://static.wixstatic.com/media/3f86e4_fb46f3ff19b84f73add0e5e6156b9ced~mv2.jpg/v1/fit/w_1000,h_1200,q_90/file.jpg",
+            "width": 1000,
+            "height": 1200
+          },
+          "id": "3f86e4_fb46f3ff19b84f73add0e5e6156b9ced~mv2.jpg"
+        }
+      ]
+    },
+    "customTextFields": [],
+    "manageVariants": false,
+    "productOptions": [],
+    "productPageUrl": {
+      "base": "https://www.jugandoyeducando.com/",
+      "path": "/product-page/mochila-de-panda-con-estampado-de-arcoíris-niños"
+    },
+    "numericId": "1731177892992000",
+    "inventoryItemId": "fd891d8f-72df-6338-8910-8032ae2c9ea5",
+    "discount": {
+      "type": "NONE",
+      "value": 0
+    },
+    "collectionIds": [
+      "b70047ea-8599-54fb-7ee1-9c6f386b0999",
+      "589ce3bf-34cf-de8a-15d5-7028ce0ba175",
+      "00000000-000000-000000-000000000001"
+    ],
+    "variants": [],
+    "lastUpdated": "2026-01-27T01:45:18.716Z",
+    "createdDate": "2024-11-09T18:44:52.992Z",
+    "ribbon": "",
+    "exportProductId": "product_0276e270-8d20-9cc7-76ef-7fcd51d3615a"
+  },
+  {
+    "id": "9a8e8a75-90df-2bdb-5a9d-4bdad6dd1f25",
+    "name": "Libro Didáctico De Animales De Motorizados Niños",
+    "slug": "libro-didáctico-de-animales-de-motorizados-niños",
+    "visible": false,
+    "productType": "physical",
+    "description": "<p><strong>3 años +</strong><br>El maletín \"Gigantes Motorizados\" es ideal para los niños fascinados por los vehículos y las máquinas grandes. Este libro de actividades cuenta con más de 50 stickers y múltiples juegos educativos que invitan a explorar el mundo de los vehículos de construcción, trenes y otros transportes. Diseñado para mantener a los pequeños entretenidos mientras desarrollan sus habilidades de coordinación y concentración.<br><br>Con actividades como laberintos, trazado de líneas y reconocimiento de formas, cada página desafía y divierte a los niños. Las ilustraciones coloridas y los stickers permiten que los pequeños personalicen las escenas y completen las actividades, haciendo de cada sesión de juego una experiencia única y educativa.<br><br>Perfecto para llevar a cualquier lugar, este maletín de actividades fomenta el aprendizaje lúdico, ideal para niños de 3 años en adelante. Es una opción fantástica para que los niños descubran y se diviertan mientras conocen más sobre el fascinante mundo de los gigantes motorizados.</p>",
+    "sku": "23205",
+    "weight": 0,
+    "weightRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "stock": {
+      "trackInventory": true,
+      "quantity": 0,
+      "inStock": false,
+      "inventoryStatus": "OUT_OF_STOCK"
+    },
+    "price": {
+      "currency": "COP",
+      "price": 19900,
+      "discountedPrice": 19900,
+      "formatted": {
+        "price": "19.900,00$",
+        "discountedPrice": "19.900,00$"
+      }
+    },
+    "priceData": {
+      "currency": "COP",
+      "price": 19900,
+      "discountedPrice": 19900,
+      "formatted": {
+        "price": "19.900,00$",
+        "discountedPrice": "19.900,00$"
+      }
+    },
+    "convertedPriceData": {
+      "currency": "COP",
+      "price": 19900,
+      "discountedPrice": 19900,
+      "formatted": {
+        "price": "19.900,00$",
+        "discountedPrice": "19.900,00$"
+      }
+    },
+    "priceRange": {
+      "minValue": 19900,
+      "maxValue": 19900
+    },
+    "costRange": {
+      "minValue": 0,
+      "maxValue": 0
+    },
+    "additionalInfoSections": [
+      {
+        "title": "Tamaño",
+        "description": "<p>26x 20x 1cm</p>"
+      }
+    ],
+    "ribbons": [],
+    "media": {
+      "mainMedia": {
+        "thumbnail": {
+          "url": "https://static.wixstatic.com/media/3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+          "width": 50,
+          "height": 50
+        },
+        "mediaType": "image",
+        "title": "1.jpg",
+        "image": {
+          "url": "https://static.wixstatic.com/media/3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg/v1/fit/w_900,h_900,q_90/file.jpg",
+          "width": 900,
+          "height": 900
+        },
+        "id": "3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg"
+      },
+      "items": [
+        {
+          "thumbnail": {
+            "url": "https://static.wixstatic.com/media/3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+            "width": 50,
+            "height": 50
+          },
+          "mediaType": "image",
+          "title": "1.jpg",
+          "image": {
+            "url": "https://static.wixstatic.com/media/3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg/v1/fit/w_900,h_900,q_90/file.jpg",
+            "width": 900,
+            "height": 900
+          },
+          "id": "3f86e4_69c7c873652648e5b5eb09d625a122c8~mv2.jpg"
+        },
+        {
+          "thumbnail": {
+            "url": "https://static.wixstatic.com/media/3f86e4_fb4a28d4b8b3458fb683deef8b66432a~mv2.jpg/v1/fit/w_50,h_50,q_90/file.jpg",
+            "width": 50,
+            "height": 50
+          },
+          "mediaType": "image",
+          "title": "2.jpg",
+          "image": {
+            "url": "https://static.wixstatic.com/media/3f86e4_fb4a28d4b8b3458fb683deef8b66432a~mv2.jpg/v1/fit/w_900,h_900,q_90/file.jpg",
+            "width": 900,
+            "height": 900
+          },
+          "id": "3f86e4_fb4a28d4b8b3458fb683deef8b66432a~mv2.jpg"
+        }
+      ]
+    },
+    "customTextFields": [],
+    "manageVariants": false,
+    "productOptions": [],
+    "productPageUrl": {
+      "base": "https://www.jugandoyeducando.com/",
+      "path": "/product-page/libro-didáctico-de-animales-de-motorizados-niños"
+    },
+    "numericId": "1730850642752000",
+    "inventoryItemId": "6571758a-6f20-d424-a562-b4252922e0da",
+    "discount": {
+      "type": "NONE",
+      "value": 0
+    },
+    "collectionIds": [
+      "a45a7fb7-8659-ade4-1372-173586a59a6a",
+      "d1c29837-bd60-373c-5b96-fd017f8d7b0f",
+      "91b1036e-fe90-a26c-8207-4da1778e23ae",
+      "f710d625-422c-4e28-ef09-222caf88ace1",
+      "00000000-000000-000000-000000000001"
+    ],
+    "variants": [],
+    "lastUpdated": "2026-01-27T01:45:18.716Z",
+    "createdDate": "2024-11-05T23:50:42.752Z",
+    "ribbon": "",
+    "exportProductId": "product_9a8e8a75-90df-2bdb-5a9d-4bdad6dd1f25"
+  }
+]

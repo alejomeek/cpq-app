@@ -192,7 +192,7 @@ const ProductCard = ({ product, onClick, onEdit, onDuplicate, onDelete }) => {
         <div className="space-y-1">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-primary">
-              {formatCurrency(product.precioBase)}
+              {formatCurrency(product.precio_iva_incluido || product.precioBase)}
             </span>
           </div>
           {product.costo && (

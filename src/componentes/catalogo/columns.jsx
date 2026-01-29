@@ -114,7 +114,7 @@ export const createColumns = (onProductClick, onEdit, onDuplicate, onDelete) => 
     },
   },
   {
-    accessorKey: "precioBase",
+    accessorKey: "precio_iva_incluido",
     header: ({ column }) => {
       return (
         <div className="text-right">
@@ -129,9 +129,9 @@ export const createColumns = (onProductClick, onEdit, onDuplicate, onDelete) => 
       )
     },
     cell: ({ row }) => {
-      const precio = row.getValue("precioBase");
+      const precio = row.original.precio_iva_incluido || row.original.precioBase || 0;
       const costo = row.original.costo;
-      
+
       return (
         <div className="text-right space-y-1">
           <div className="font-medium">{formatCurrency(precio)}</div>
@@ -148,11 +148,11 @@ export const createColumns = (onProductClick, onEdit, onDuplicate, onDelete) => 
     id: "margen",
     header: () => <div className="text-right">Margen</div>,
     cell: ({ row }) => {
-      const precio = row.original.precioBase || 0;
+      const precio = row.original.precio_iva_incluido || row.original.precioBase || 0;
       const costo = row.original.costo || 0;
       const ganancia = precio - costo;
       const margen = precio > 0 ? ((ganancia / precio) * 100) : 0;
-      
+
       if (precio === 0 || costo === 0) {
         return <div className="text-right text-muted-foreground">—</div>;
       }

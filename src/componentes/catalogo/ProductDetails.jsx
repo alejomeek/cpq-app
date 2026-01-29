@@ -153,7 +153,7 @@ const ProductDetails = ({ product, open, onOpenChange, onEdit, onDelete }) => {
             <div className="p-4 bg-primary/5 rounded-lg">
               <p className="text-sm text-muted-foreground">Precio</p>
               <p className="text-2xl font-bold mt-1">
-                {formatCurrency(product.precioBase)}
+                {formatCurrency(product.precio_iva_incluido || product.precioBase)}
               </p>
             </div>
           </div>

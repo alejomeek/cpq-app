@@ -301,15 +301,10 @@ const QuotePDF = ({ quote, client, products = [] }) => {
           {quote.lineas.map((line, i) => {
             const product = products.find(p => p.id === line.productId);
 
-            // CORRECCIÓN: line.price ya viene CON IVA incluido desde Wix
-            // Necesitamos calcular el precio SIN IVA
-            const precioConIvaOriginal = line.price;
-            const precioSinIva = product?.exento_iva
-              ? precioConIvaOriginal  // Si está exento, el precio es el mismo
-              : precioConIvaOriginal / 1.19;  // Si tiene IVA, dividir por 1.19
-
-            const ivaUnitario = product?.exento_iva ? 0 : (precioSinIva * 0.19);
-            const precioConIva = precioSinIva + ivaUnitario;  // Esto debería ser igual a line.price
+            // line.price ya es el precioBase (sin IVA)
+            const precioSinIva = line.price;
+            const ivaUnitario = product?.exento_iva ? 0 : (line.price * 0.19);
+            const precioConIva = precioSinIva + ivaUnitario;
             const totalLinea = line.quantity * precioConIva;
 
             return (
