@@ -158,6 +158,116 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
 
   if (!quoteId || loading) return null;
 
+  // Función para convertir imagen a base64 con manejo de CORS, timeout y límite de tamaño
+  const imageUrlToBase64 = async (url, timeoutMs = 8000) => {
+    try {
+      // Si ya es base64, retornarla directamente
+      if (url.startsWith('data:image')) {
+        return url;
+      }
+
+      // Si es placeholder, retornar directamente
+      if (url.includes('placehold.co')) {
+        return url;
+      }
+
+      // Reducir tamaño de imágenes de Wix (optimización)
+      let optimizedUrl = url;
+      if (url.includes('wixstatic.com')) {
+        // Reemplazar tamaños grandes por tamaños pequeños (máx 300x300 para PDF)
+        optimizedUrl = url.replace(/\/fit\/w_\d+,h_\d+/, '/fit/w_300,h_300');
+        console.log('🔧 Optimizing Wix image:', optimizedUrl);
+      }
+
+      // Fetch con timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const response = await fetch(optimizedUrl, {
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch image (${response.status}): ${optimizedUrl}`);
+        return 'https://placehold.co/200x200/e5e7eb/6b7280?text=Sin+Imagen';
+      }
+
+      const blob = await response.blob();
+
+      // Verificar tamaño del blob (máx 2MB)
+      if (blob.size > 2 * 1024 * 1024) {
+        console.warn(`Image too large (${(blob.size / 1024 / 1024).toFixed(2)}MB): ${optimizedUrl}`);
+        return 'https://placehold.co/200x200/e5e7eb/6b7280?text=Imagen+muy+grande';
+      }
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.warn(`Timeout fetching image: ${url}`);
+      } else {
+        console.warn(`Error converting image to base64: ${url}`, error);
+      }
+      return 'https://placehold.co/200x200/e5e7eb/6b7280?text=Sin+Imagen';
+    }
+  };
+
+  // Función para procesar solo imágenes que necesitan conversión (solo Firebase Storage)
+  const convertOnlyFirebaseImages = async (allProducts, quoteLines, batchSize = 3) => {
+    // 1. Obtener solo los productos que están en la cotización
+    const productIdsInQuote = quoteLines.map(line => line.productId);
+    const productsInQuote = allProducts.filter(p => productIdsInQuote.includes(p.id));
+
+    console.log(`📦 Productos en cotización: ${productsInQuote.length} de ${allProducts.length} totales`);
+
+    // 2. Identificar cuáles necesitan conversión (solo Firebase Storage)
+    const productsNeedingConversion = productsInQuote.filter(p =>
+      p.imagen_url && p.imagen_url.includes('firebasestorage.googleapis.com')
+    );
+
+    console.log(`🔧 Imágenes a convertir: ${productsNeedingConversion.length} (Firebase Storage)`);
+    console.log(`✅ Imágenes sin cambios: ${productsInQuote.length - productsNeedingConversion.length} (Wix/otras)`);
+
+    if (productsNeedingConversion.length === 0) {
+      console.log('⚡ No hay imágenes de Firebase Storage, usando productos originales');
+      return allProducts;
+    }
+
+    // 3. Convertir solo las necesarias en lotes
+    const convertedProducts = [];
+    for (let i = 0; i < productsNeedingConversion.length; i += batchSize) {
+      const batch = productsNeedingConversion.slice(i, i + batchSize);
+      console.log(`🖼️ Convirtiendo lote ${Math.floor(i / batchSize) + 1}/${Math.ceil(productsNeedingConversion.length / batchSize)}`);
+
+      const convertedBatch = await Promise.all(
+        batch.map(async (product) => {
+          const base64Image = await imageUrlToBase64(product.imagen_url);
+          return { ...product, imagen_url: base64Image };
+        })
+      );
+
+      convertedProducts.push(...convertedBatch);
+
+      if (i + batchSize < productsNeedingConversion.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // 4. Crear un mapa de productos convertidos
+    const convertedMap = new Map(convertedProducts.map(p => [p.id, p]));
+
+    // 5. Retornar array completo con solo los necesarios reemplazados
+    return allProducts.map(p => convertedMap.get(p.id) || p);
+  };
+
   const handleDownload = async () => {
     setIsGenerating(true);
     console.log(`[DownloadPDFButton] Using PDF Style: ${styleToUse}`);
@@ -165,10 +275,16 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
+      // Convertir SOLO las imágenes de Firebase Storage que están en esta cotización
+      const productsWithBase64Images = await convertOnlyFirebaseImages(products, quote.lineas, 3);
+
+      console.log('✅ Imágenes procesadas correctamente');
+
       // Cargar logo directamente desde Wix para mayor velocidad
       const logoUrl = "https://static.wixstatic.com/media/7909ff_fb58218a20af4d04b6b325b43056b7b2~mv2.png/v1/fill/w_287,h_61,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo_versi%C3%83%C2%B3n_final_JYE.png";
       const companyLogoBase64 = logoUrl;
 
+      console.log('📄 Generando documento PDF...');
       const doc = <QuotePDF
         quote={{
           ...quote,
@@ -178,10 +294,12 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
           companyLogoUrl: companyLogoBase64  // Base64 en vez de URL
         }}
         client={currentClient}
-        products={products}
+        products={productsWithBase64Images}
         styleName={styleToUse}
       />;
       const blob = await pdf(doc).toBlob();
+
+      console.log(`✅ PDF generado (${(blob.size / 1024).toFixed(2)} KB)`);
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -193,6 +311,7 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
+      alert(`Error al generar PDF: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
