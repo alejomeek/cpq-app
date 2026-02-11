@@ -179,7 +179,10 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
 
   // Filtrar y ordenar productos
   const filteredAndSortedProducts = useMemo(() => {
-    let filtered = products;
+    let filtered = [...products];
+
+    console.log('🔍 Ordenamiento actual:', sortBy);
+    console.log('📦 Total productos:', filtered.length);
 
     // Filtro por búsqueda
     if (searchQuery) {
@@ -204,20 +207,22 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
     }
 
     // Ordenamiento
+    console.log('💰 Primeros 3 productos ANTES de ordenar:', filtered.slice(0, 3).map(p => ({ nombre: p.nombre, precioBase: p.precioBase })));
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
           return (a.nombre || '').localeCompare(b.nombre || '');
         case 'price-asc':
-          return ((a.precio_iva_incluido || a.precioBase) || 0) - ((b.precio_iva_incluido || b.precioBase) || 0);
+          return (a.precioBase || 0) - (b.precioBase || 0);
         case 'price-desc':
-          return ((b.precio_iva_incluido || b.precioBase) || 0) - ((a.precio_iva_incluido || a.precioBase) || 0);
-        case 'newest':
-          return (b.fechaCreacion?.toMillis() || 0) - (a.fechaCreacion?.toMillis() || 0);
+          return (b.precioBase || 0) - (a.precioBase || 0);
         default:
           return 0;
       }
     });
+
+    console.log('✅ Primeros 3 productos DESPUÉS de ordenar:', filtered.slice(0, 3).map(p => ({ nombre: p.nombre, precioBase: p.precioBase })));
 
     return filtered;
   }, [products, searchQuery, selectedType, selectedCategory, sortBy]);
@@ -337,7 +342,6 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
               <SelectItem value="name">Nombre (A-Z)</SelectItem>
               <SelectItem value="price-asc">Precio (Menor)</SelectItem>
               <SelectItem value="price-desc">Precio (Mayor)</SelectItem>
-              <SelectItem value="newest">Más reciente</SelectItem>
             </SelectContent>
           </Select>
 
