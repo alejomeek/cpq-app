@@ -124,23 +124,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productImage: {
-    width: 50,
-    height: 50,
+    width: 35,
+    height: 35,
     objectFit: 'cover',
-    marginRight: 8,
+    marginRight: 6,
   },
   productInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 8,
+    paddingRight: 4,
+  },
+  productText: {
+    flex: 1,
   },
   altRow: {
     backgroundColor: colors.lightGray,
   },
-  colDescription: { width: '25%' },
-  colQty: { width: '10%', textAlign: 'center', paddingLeft: 25 },
-  colPriceUnit: { width: '25%', textAlign: 'right' },
-  colIvaUnit: { width: '15%', textAlign: 'right' },
+  colDescription: { width: '28%' },
+  colSKU: { width: '10%', textAlign: 'left' },
+  colQty: { width: '8%', textAlign: 'center' },
+  colPriceUnit: { width: '18%', textAlign: 'right' },
+  colIvaUnit: { width: '16%', textAlign: 'right' },
   colTotal: { width: '20%', textAlign: 'right' },
 
   // --- TOTALES ---
@@ -292,6 +296,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
         <View>
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, styles.colDescription]}>Descripción</Text>
+            <Text style={[styles.headerCell, styles.colSKU]}>SKU</Text>
             <Text style={[styles.headerCell, styles.colQty]}>Cant.</Text>
             <Text style={[styles.headerCell, styles.colPriceUnit]}>Precio Unit.</Text>
             <Text style={[styles.headerCell, styles.colIvaUnit]}>IVA Unit.</Text>
@@ -315,22 +320,35 @@ const QuotePDF = ({ quote, client, products = [] }) => {
                     src={getProductImage(line.productId)}
                     style={styles.productImage}
                   />
-                  <Text>{line.productName}</Text>
+                  <View style={styles.productText}>
+                    <Text>{line.productName}</Text>
+                  </View>
+                </View>
+
+                {/* SKU */}
+                <View style={[styles.colSKU]}>
+                  <Text>{product?.sku || ''}</Text>
                 </View>
 
                 {/* Cantidad */}
-                <Text style={[styles.colQty]}>{line.quantity.toFixed(0)}</Text>
+                <View style={[styles.colQty]}>
+                  <Text>{line.quantity.toFixed(0)}</Text>
+                </View>
 
                 {/* Precio Unitario (SIN IVA) */}
-                <Text style={[styles.colPriceUnit]}>{formatCurrency(precioSinIva)}</Text>
+                <View style={[styles.colPriceUnit]}>
+                  <Text>{formatCurrency(precioSinIva)}</Text>
+                </View>
 
                 {/* IVA Unitario */}
-                <Text style={[styles.colIvaUnit]}>
-                  {product?.exento_iva ? 'Exento' : formatCurrency(ivaUnitario)}
-                </Text>
+                <View style={[styles.colIvaUnit]}>
+                  <Text>{product?.exento_iva ? 'Exento' : formatCurrency(ivaUnitario)}</Text>
+                </View>
 
                 {/* Total Línea (Precio sin IVA + IVA) */}
-                <Text style={[styles.colTotal]}>{formatCurrency(totalLinea)}</Text>
+                <View style={[styles.colTotal]}>
+                  <Text>{formatCurrency(totalLinea)}</Text>
+                </View>
               </View>
             );
           })}
