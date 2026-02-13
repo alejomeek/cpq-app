@@ -313,7 +313,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
             const totalLinea = line.quantity * precioConIva;
 
             return (
-              <View key={i} style={[styles.tableRowWithImage, i % 2 === 1 && styles.altRow]}>
+              <View key={i} wrap={false} style={[styles.tableRowWithImage, i % 2 === 1 && styles.altRow]}>
                 {/* Imagen + Descripción */}
                 <View style={[styles.colDescription, styles.productInfo]}>
                   <Image

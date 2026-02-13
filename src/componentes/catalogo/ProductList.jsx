@@ -181,9 +181,6 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = [...products];
 
-    console.log('🔍 Ordenamiento actual:', sortBy);
-    console.log('📦 Total productos:', filtered.length);
-
     // Filtro por búsqueda
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -207,8 +204,6 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
     }
 
     // Ordenamiento
-    console.log('💰 Primeros 3 productos ANTES de ordenar:', filtered.slice(0, 3).map(p => ({ nombre: p.nombre, precioBase: p.precioBase })));
-
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
@@ -221,8 +216,6 @@ const ProductList = ({ db, onProductClick, onEditProduct, onAddNewProduct }) => 
           return 0;
       }
     });
-
-    console.log('✅ Primeros 3 productos DESPUÉS de ordenar:', filtered.slice(0, 3).map(p => ({ nombre: p.nombre, precioBase: p.precioBase })));
 
     return filtered;
   }, [products, searchQuery, selectedType, selectedCategory, sortBy]);
