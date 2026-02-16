@@ -376,6 +376,16 @@ const QuotePDF = ({ quote, client, products = [] }) => {
             </Text>
           </View>
 
+          {/* Descuento (solo si > 0) */}
+          {quote.discount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Descuento ({quote.discount}%)</Text>
+              <Text style={[styles.totalValue, { color: colors.accent }]}>
+                - {formatCurrency((quote.subtotal + quote.impuestos) * (quote.discount / 100))}
+              </Text>
+            </View>
+          )}
+
           {/* Flete (solo si > 0) */}
           {quote.fleteValue > 0 && (
             <View style={styles.totalRow}>

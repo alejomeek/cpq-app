@@ -335,6 +335,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     tienda: '',           // NUEVO: Multi-tienda
     fleteType: 'incluido', // NUEVO: Tipo de flete (incluido/manual)
     fleteValue: 0,        // NUEVO: Valor del flete
+    discount: 0,          // NUEVO: Descuento en porcentaje (0-100)
   });
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
@@ -415,7 +416,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
               lineas: data.lineas || [],
               tienda: data.tienda || 'Barranquilla',        // Default para cotizaciones antiguas
               fleteType: data.fleteType || 'incluido',       // Default para cotizaciones antiguas
-              fleteValue: data.fleteValue || 0               // Default para cotizaciones antiguas
+              fleteValue: data.fleteValue || 0,              // Default para cotizaciones antiguas
+              discount: data.discount || 0                   // Default para cotizaciones antiguas
             });
             setCanSave(true);
           } else {
@@ -531,7 +533,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     }
     setLoading(true);
     setErrorNotification(null);
-    const { subtotal, tax, fleteValue, total } = calculateTotals();
+    const { subtotal, tax, fleteValue, discountAmount, total } = calculateTotals();
     const selectedClient = clients.find(c => c.id === quote.clienteId);
     const quoteData = {
       numero: quote.numero,
@@ -543,6 +545,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       tienda: quote.tienda,          // NUEVO
       fleteType: quote.fleteType,    // NUEVO
       fleteValue: fleteValue,        // NUEVO
+      discount: parseFloat(quote.discount) || 0,  // NUEVO: Descuento en porcentaje
       subtotal,
       impuestos: tax,
       total,
@@ -610,7 +613,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     }
   };
 
-  // --- Función de Cálculo (MODIFICADA para incluir flete e IVA selectivo) ---
+  // --- Función de Cálculo (MODIFICADA para incluir flete, IVA selectivo y descuento) ---
   const calculateTotals = () => {
     const lineasValidas = Array.isArray(quote.lineas) ? quote.lineas : [];
 
@@ -627,12 +630,22 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       return acc + (lineTotal * 0.19);
     }, 0);
 
-    const fleteValue = quote.fleteType === 'incluido' ? 0 : (parseFloat(quote.fleteValue) || 0);
-    const total = subtotal + tax + fleteValue;
+    // Subtotal antes de descuento
+    const subtotalBeforeDiscount = subtotal + tax;
 
-    return { subtotal, tax, fleteValue, total };
+    // Calcular descuento
+    const discountPercentage = parseFloat(quote.discount) || 0;
+    const discountAmount = subtotalBeforeDiscount * (discountPercentage / 100);
+
+    // Nuevo subtotal después de descuento
+    const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
+
+    const fleteValue = quote.fleteType === 'incluido' ? 0 : (parseFloat(quote.fleteValue) || 0);
+    const total = subtotalAfterDiscount + fleteValue;
+
+    return { subtotal, tax, fleteValue, discountAmount, total };
   };
-  const { subtotal, tax, fleteValue, total } = calculateTotals();
+  const { subtotal, tax, fleteValue, discountAmount, total } = calculateTotals();
 
   const handleAddToCart = (cart) => {
     const newLineas = Object.entries(cart).map(([productId, quantity]) => {
@@ -855,6 +868,35 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
             <div className="flex justify-between font-semibold">
               <span>Subtotal:</span>
               <span>${(subtotal + tax).toFixed(0)}</span>
+            </div>
+
+            <Separator />
+
+            {/* Campo de Descuento */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Descuento (%)</Label>
+              <Input
+                id="discount"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={quote.discount || ''}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  const clampedValue = Math.max(0, Math.min(100, value));
+                  setQuote(prev => ({ ...prev, discount: clampedValue }));
+                }}
+                placeholder="0"
+                className="mt-1"
+              />
+
+              {quote.discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Descuento ({quote.discount}%):</span>
+                  <span className="text-destructive">- ${discountAmount.toFixed(0)}</span>
+                </div>
+              )}
             </div>
 
             <Separator />
