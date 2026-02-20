@@ -60,13 +60,13 @@ export default function App() {
   const renderRoute = () => {
     const props = { db, navigate: handleNavigate };
     switch (route) {
-      case 'dashboard': 
+      case 'dashboard':
         return <Dashboard {...props} />;
-      case 'clients': 
+      case 'clients':
         return <ClientesPage {...props} navigationState={navigationState} />;
-      case 'catalog': 
+      case 'catalog':
         return <CatalogoPage {...props} />;
-      case 'quotes': 
+      case 'quotes':
         return (
           <QuotesPage
             {...props}
@@ -74,16 +74,16 @@ export default function App() {
             onClearTargetQuote={clearTargetQuote}
           />
         );
-      case 'settings': 
+      case 'settings':
         return <SettingsPage {...props} />;
-      default: 
+      default:
         return <Dashboard {...props} />;
     }
   };
 
   if (loadingAuth) {
     return (
-      <ThemeProvider defaultTheme="dark" storageKey="cpq-app-theme">
+      <ThemeProvider defaultTheme="light" storageKey="cpq-app-theme">
         <LoadingScreen />
       </ThemeProvider>
     );
@@ -91,14 +91,14 @@ export default function App() {
 
   if (!user) {
     return (
-      <ThemeProvider defaultTheme="dark" storageKey="cpq-app-theme">
+      <ThemeProvider defaultTheme="light" storageKey="cpq-app-theme">
         <LoginPage auth={auth} />
       </ThemeProvider>
     );
   }
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="cpq-app-theme">
+    <ThemeProvider defaultTheme="light" storageKey="cpq-app-theme">
       <SidebarProvider className="min-h-screen bg-background text-foreground">
         <AppSidebar navigate={handleNavigate} route={route} />
 
@@ -106,7 +106,7 @@ export default function App() {
           <div className="flex justify-start items-center mb-8">
             <SidebarTrigger />
           </div>
-          
+
           {renderRoute()}
         </main>
       </SidebarProvider>

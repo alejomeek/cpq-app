@@ -344,6 +344,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
+  const [activeLineIndex, setActiveLineIndex] = useState(null);
   const [errorNotification, setErrorNotification] = useState(null);
   const [canSave, setCanSave] = useState(true);
   const [globalConfig, setGlobalConfig] = useState(null);
@@ -441,8 +442,13 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     loadInitialData();
   }, [db, quoteId, fetchProducts, user]);
 
-  const handleOpenProductForm = (productData) => {
-    setProductToEdit(productData);
+  const handleOpenProductForm = (productData, index = null) => {
+    setActiveLineIndex(index);
+    if (typeof productData === 'string') {
+      setProductToEdit({ nombre: productData });
+    } else {
+      setProductToEdit(productData);
+    }
     setIsProductFormOpen(true);
   };
 
@@ -451,7 +457,11 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     setProductToEdit(null);
     if (newProduct) {
       fetchProducts();
+      if (activeLineIndex !== null && newProduct.id) {
+        handleInlineProductSelect(activeLineIndex, newProduct);
+      }
     }
+    setActiveLineIndex(null);
   };
 
   const handleInputChange = (e) => setQuote(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -464,9 +474,11 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   };
 
   const handleInlineProductSelect = (index, product) => {
-    const newLines = [...quote.lineas];
-    newLines[index] = { productId: product.id, productName: product.nombre, quantity: 1, price: product.precioBase || 0 };
-    setQuote(prev => ({ ...prev, lineas: newLines }));
+    setQuote(prev => {
+      const newLines = [...prev.lineas];
+      newLines[index] = { productId: product.id, productName: product.nombre, quantity: 1, price: product.precioBase || 0 };
+      return { ...prev, lineas: newLines };
+    });
   };
 
   const addEmptyLine = () => {
@@ -804,7 +816,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                 <tr key={index} className="border-b">
                   <td className="px-6 py-2">
                     {line.productId === null ? (
-                      <InlineProductSearch products={products} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} onCreateNew={handleOpenProductForm} />
+                      <InlineProductSearch products={products} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} onCreateNew={(query) => handleOpenProductForm(query, index)} />
                     ) : (line.productName)}
                   </td>
                   <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" /></td>
@@ -845,6 +857,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           <Button variant="link" className="p-0 h-auto" onClick={addEmptyLine}>+ Añadir un producto</Button>
           <Button variant="link" className="p-0 h-auto" onClick={() => setIsCatalogOpen(true)}>
             Abrir Catálogo
+          </Button>
+          <Button variant="link" className="p-0 h-auto" onClick={() => handleOpenProductForm(null, quote.lineas.length)}>
+            + Crear Producto
           </Button>
         </div>
       </div>
