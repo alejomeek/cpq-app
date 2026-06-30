@@ -304,7 +304,12 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${quote.numero || 'cotizacion'}.pdf`;
+      const clientSlug = (currentClient?.nombre || '')
+        .trim()
+        .replace(/[/\\:*?"<>|]/g, '')
+        .slice(0, 40)
+        .trim();
+      link.download = `${quote.numero || 'cotizacion'}${clientSlug ? ` - ${clientSlug}` : ''}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
