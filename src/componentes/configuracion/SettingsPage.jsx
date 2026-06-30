@@ -15,6 +15,7 @@ import ConditionsModule from './condiciones/ConditionsModule.jsx';
 import TaxesModule from './impuestos/TaxesModule.jsx';
 import QuoteStylesModule from './estilos/QuoteStylesModule.jsx';
 import CompanySettingsModule from './CompanySettingsModule.jsx';
+import FeaturesModule from './FeaturesModule.jsx';
 
 // ¡CAMBIO! Ya NO recibe 'user' ni 'auth' como props
 const SettingsPage = ({ db, navigate }) => {
@@ -53,11 +54,12 @@ const SettingsPage = ({ db, navigate }) => {
       <h1 className="text-2xl font-bold mb-8 text-foreground">Gestión de Parámetros</h1>
 
       <Tabs defaultValue="condiciones" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 max-w-4xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-5xl">
           <TabsTrigger value="condiciones">Condiciones de Pago</TabsTrigger>
           <TabsTrigger value="impuestos">Impuestos</TabsTrigger>
           <TabsTrigger value="estilos">Estilos de Cotización</TabsTrigger>
           <TabsTrigger value="empresa">Empresa</TabsTrigger>
+          <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
         </TabsList>
 
         <TabsContent value="condiciones" className="mt-6">
@@ -74,6 +76,10 @@ const SettingsPage = ({ db, navigate }) => {
 
         <TabsContent value="empresa" className="mt-6">
           <CompanySettingsModule db={db} />
+        </TabsContent>
+
+        <TabsContent value="funcionalidades" className="mt-6">
+          <FeaturesModule db={db} />
         </TabsContent>
       </Tabs>
     </div>

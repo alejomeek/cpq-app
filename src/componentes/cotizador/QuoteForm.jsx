@@ -349,6 +349,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   const [canSave, setCanSave] = useState(true);
   const [globalConfig, setGlobalConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [emailFeatureEnabled, setEmailFeatureEnabled] = useState(true);
 
   // NUEVO: Estados para envío de email
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -380,15 +381,17 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       try {
         // ¡CAMBIO! Rutas anidadas con user.uid
         const configRef = doc(db, 'usuarios', user.uid, 'configuracion', 'global');
+        const featuresRef = doc(db, 'usuarios', user.uid, 'settings', 'features');
         const paymentTermsQuery = query(
           collection(db, "usuarios", user.uid, "condicionesPago"),
           where("activo", "==", true)
         );
 
-        const [clientsSnap, termsSnap, configSnap] = await Promise.all([
+        const [clientsSnap, termsSnap, configSnap, featuresSnap] = await Promise.all([
           getDocs(collection(db, "usuarios", user.uid, "clientes")),
           getDocs(paymentTermsQuery),
-          getDoc(configRef)
+          getDoc(configRef),
+          getDoc(featuresRef)
         ]);
 
         setClients(clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -401,6 +404,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           console.warn("[QuoteForm] Global config document not found.");
           setGlobalConfig({});
         }
+
+        setEmailFeatureEnabled(featuresSnap.exists() ? (featuresSnap.data().emailEnabled ?? true) : true);
         setLoadingConfig(false);
 
         await fetchProducts();
@@ -698,8 +703,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
               quoteStyleName={globalConfig?.quoteStyle}
               products={products}
             />
-            {/* NUEVO: Botón Enviar por Email */}
-            {quoteId && (
+            {/* Botón Enviar por Email */}
+            {quoteId && emailFeatureEnabled && (
               <Button
                 variant="default"
                 onClick={() => setEmailDialogOpen(true)}
