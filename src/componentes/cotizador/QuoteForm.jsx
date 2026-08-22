@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
 import { getFunctions } from 'firebase/functions';
 import { pdf } from '@react-pdf/renderer';
 import QuotePDF from './QuotePDF.jsx';
+import ProductoForm from '../catalogo/ProductoForm.jsx';
 import { getNextQuoteNumber } from '../../utils/quoteNumbering.js';
 import {
   createQuoteLineFromCatalogProduct,
@@ -157,14 +159,25 @@ const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
 // --- Sub-componente: InlineProductSearch ---
 // Es el flujo rápido para una sola línea. A diferencia del buscador anterior,
 // consulta Shopify y los manuales para que ambas fuentes estén disponibles.
-const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
+const InlineProductSearch = ({ db, onProductSelect, onCancel, onCreateManual, index }) => {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [shopifyProducts, setShopifyProducts] = useState([]);
   const [manualProducts, setManualProducts] = useState([]);
+  const [loadingManual, setLoadingManual] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const resultsRef = useRef(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  const updatePosition = useCallback(() => {
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, []);
 
   useEffect(() => {
     if (!user?.uid) return undefined;
@@ -176,6 +189,9 @@ const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
       })
       .catch(() => {
         if (active) setError('No se pudieron cargar los productos manuales.');
+      })
+      .finally(() => {
+        if (active) setLoadingManual(false);
       });
 
     return () => { active = false; };
@@ -183,7 +199,9 @@ const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) onCancel(index);
+      const clickedInput = containerRef.current?.contains(event.target);
+      const clickedResults = resultsRef.current?.contains(event.target);
+      if (!clickedInput && !clickedResults) onCancel(index);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -197,8 +215,9 @@ const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
     }
 
     const controller = new AbortController();
+    setShopifyProducts([]);
+    setLoading(true);
     const timeout = window.setTimeout(async () => {
-      setLoading(true);
       setError(null);
       try {
         const result = await fetchCatalogProducts(user, { q: query, pageSize: 8, signal: controller.signal });
@@ -216,6 +235,17 @@ const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
     };
   }, [query, user]);
 
+  useEffect(() => {
+    if (!query.trim()) return undefined;
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [query, updatePosition]);
+
   const normalizedQuery = query.trim().toLowerCase();
   const manualResults = manualProducts.filter((product) => (
     normalizedQuery && [product.title, product.sku]
@@ -223,22 +253,35 @@ const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
   )).slice(0, 8);
   const results = [...shopifyProducts, ...manualResults];
 
-  return (
-    <div ref={containerRef} className="relative min-w-64">
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre o SKU..." autoFocus />
-      {query.trim() && (
-        <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
-          {loading && <p className="p-3 text-sm text-muted-foreground">Buscando en Shopify...</p>}
-          {error && <p className="p-3 text-sm text-destructive">{error}</p>}
-          {results.map((product) => (
-            <button key={`${product.source}:${product.id}`} type="button" onClick={() => onProductSelect(index, product)} className="w-full border-b p-3 text-left hover:bg-accent last:border-b-0">
-              <p className="font-semibold">{product.title}</p>
-              <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'} · {product.source === 'manual' ? 'Manual' : 'Shopify'}</p>
-            </button>
-          ))}
-          {!loading && results.length === 0 && <p className="p-3 text-sm text-muted-foreground">No se encontraron productos.</p>}
+  const resultsMenu = query.trim() ? (
+    <div
+      ref={resultsRef}
+      className="fixed z-[60] max-h-64 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground"
+      style={{ top: position.top, left: position.left, width: position.width }}
+    >
+      {loading && <p className="p-3 text-sm text-muted-foreground">Buscando en Shopify...</p>}
+      {error && <p className="p-3 text-sm text-destructive">{error}</p>}
+      {results.map((product) => (
+        <button key={`${product.source}:${product.id}`} type="button" onClick={() => onProductSelect(index, product)} className="w-full border-b p-3 text-left hover:bg-accent last:border-b-0">
+          <p className="font-semibold">{product.title}</p>
+          <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'} · {product.source === 'manual' ? 'Manual' : 'Shopify'}</p>
+        </button>
+      ))}
+      {!loading && !loadingManual && !error && results.length === 0 && (
+        <div className="p-3">
+          <p className="mb-2 text-sm text-muted-foreground">No se encontraron productos.</p>
+          <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => onCreateManual(query.trim(), index)}>
+            + Añadir producto manualmente
+          </Button>
         </div>
       )}
+    </div>
+  ) : null;
+
+  return (
+    <div ref={containerRef} className="min-w-64">
+      <Input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre o SKU..." autoFocus />
+      {resultsMenu && createPortal(resultsMenu, document.body)}
     </div>
   );
 };
@@ -432,6 +475,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   const [paymentTerms, setPaymentTerms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [manualProductDraft, setManualProductDraft] = useState(null);
+  const [activeLineIndex, setActiveLineIndex] = useState(null);
   const [errorNotification, setErrorNotification] = useState(null);
   const [canSave, setCanSave] = useState(true);
   const [globalConfig, setGlobalConfig] = useState(null);
@@ -541,6 +587,23 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
         : createQuoteLineFromCatalogProduct(product);
       return { ...prev, lineas: newLines };
     });
+  };
+
+  const handleCreateManualProduct = (name, index) => {
+    setActiveLineIndex(index);
+    setManualProductDraft({ nombre: name });
+    setIsProductFormOpen(true);
+  };
+
+  const handleCloseManualProductForm = (newProduct) => {
+    setIsProductFormOpen(false);
+    setManualProductDraft(null);
+
+    if (newProduct?.id && activeLineIndex !== null) {
+      handleInlineProductSelect(activeLineIndex, { ...newProduct, source: 'manual' });
+    }
+
+    setActiveLineIndex(null);
   };
 
   const addEmptyLine = () => {
@@ -758,6 +821,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     <div className="space-y-8">
       {errorNotification && <NotificationModal message={errorNotification.message} onClose={() => setErrorNotification(null)} />}
       {isCatalogOpen && <ProductCatalogModal db={db} onClose={() => setIsCatalogOpen(false)} onAddToCart={handleAddToCart} />}
+      {isProductFormOpen && <ProductoForm db={db} product={manualProductDraft} onClose={handleCloseManualProductForm} />}
 
       <div>
         <div className="flex justify-between items-center">
@@ -904,7 +968,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                     {line.productId === null ? (
                       isLegacyQuote
                         ? <p className="text-muted-foreground">Producto sin seleccionar</p>
-                        : <InlineProductSearch db={db} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} />
+                        : <InlineProductSearch db={db} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} onCreateManual={handleCreateManualProduct} />
                     ) : (
                       <div>
                         <p>{line.productName}</p>
