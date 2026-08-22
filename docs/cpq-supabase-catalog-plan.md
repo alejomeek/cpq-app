@@ -178,6 +178,8 @@ líneas Shopify; no se reescriben cotizaciones ya guardadas.
 
 - [x] Buscar Shopify mediante el cliente Supabase y productos manuales mediante
   Firestore; mostrar el origen de cada resultado.
+- [x] Mantener dos flujos separados: búsqueda inline para añadir una sola línea
+  y modal de catálogo para seleccionar varias líneas como carrito.
 - [x] Crear líneas con la instantánea completa y con `source`,
   `catalogProductId` o `manualProductId` según corresponda.
 - [x] Calcular IVA desde `line.taxable` y `line.taxRate`, no desde una búsqueda
@@ -270,6 +272,10 @@ La migración está terminada sólo cuando:
 - Producción: las credenciales server-side se configuraron de forma segura en
   Vercel y el commit `dcf3299` se desplegó desde `main`. La interfaz confirmó
   la carga autenticada del catálogo Shopify desde Supabase.
+- Corrección de UX pendiente de validación visual: `Añadir un producto` volvió
+  a insertar una línea con búsqueda inline dual; `Abrir Catálogo` conserva el
+  modal de carrito. La regresión se produjo al retirar el buscador inline
+  Firebase-only durante la integración inicial.
 - Limpieza ejecutada el 2026-08-22 para el usuario CPQ objetivo: se eliminaron
   8.734 documentos manuales que coincidían por SKU exacto con Supabase activo.
   La auditoría posterior confirmó 99 productos manuales restantes: 96 con SKU

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
 import { getFunctions } from 'firebase/functions';
@@ -150,6 +150,95 @@ const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
         </div>
         <div className="pt-6 border-t"><Button onClick={() => onAddToCart(Object.values(cart))} className="w-full"> Volver a la cotización </Button></div>
       </div>
+    </div>
+  );
+};
+
+// --- Sub-componente: InlineProductSearch ---
+// Es el flujo rápido para una sola línea. A diferencia del buscador anterior,
+// consulta Shopify y los manuales para que ambas fuentes estén disponibles.
+const InlineProductSearch = ({ db, onProductSelect, onCancel, index }) => {
+  const { user } = useAuth();
+  const [query, setQuery] = useState('');
+  const [shopifyProducts, setShopifyProducts] = useState([]);
+  const [manualProducts, setManualProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    let active = true;
+
+    getDocs(collection(db, 'usuarios', user.uid, 'productos'))
+      .then((snapshot) => {
+        if (active) setManualProducts(snapshot.docs.map((manual) => normalizeManualProduct({ id: manual.id, ...manual.data() })));
+      })
+      .catch(() => {
+        if (active) setError('No se pudieron cargar los productos manuales.');
+      });
+
+    return () => { active = false; };
+  }, [db, user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) onCancel(index);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [index, onCancel]);
+
+  useEffect(() => {
+    if (!query.trim() || !user) {
+      setShopifyProducts([]);
+      setLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetchCatalogProducts(user, { q: query, pageSize: 8, signal: controller.signal });
+        setShopifyProducts(result.products.map((product) => ({ ...product, source: 'shopify' })));
+      } catch (loadError) {
+        if (loadError.name !== 'AbortError') setError(loadError.message || 'No se pudo buscar Shopify.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [query, user]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const manualResults = manualProducts.filter((product) => (
+    normalizedQuery && [product.title, product.sku]
+      .some((value) => value?.toLowerCase().includes(normalizedQuery))
+  )).slice(0, 8);
+  const results = [...shopifyProducts, ...manualResults];
+
+  return (
+    <div ref={containerRef} className="relative min-w-64">
+      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre o SKU..." autoFocus />
+      {query.trim() && (
+        <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
+          {loading && <p className="p-3 text-sm text-muted-foreground">Buscando en Shopify...</p>}
+          {error && <p className="p-3 text-sm text-destructive">{error}</p>}
+          {results.map((product) => (
+            <button key={`${product.source}:${product.id}`} type="button" onClick={() => onProductSelect(index, product)} className="w-full border-b p-3 text-left hover:bg-accent last:border-b-0">
+              <p className="font-semibold">{product.title}</p>
+              <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'} · {product.source === 'manual' ? 'Manual' : 'Shopify'}</p>
+            </button>
+          ))}
+          {!loading && results.length === 0 && <p className="p-3 text-sm text-muted-foreground">No se encontraron productos.</p>}
+        </div>
+      )}
     </div>
   );
 };
@@ -444,10 +533,26 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     setQuote(prev => ({ ...prev, lineas: newLines }));
   };
 
-  const addEmptyLine = () => {
-    setIsCatalogOpen(true);
+  const handleInlineProductSelect = (index, product) => {
+    setQuote(prev => {
+      const newLines = [...prev.lineas];
+      newLines[index] = product.source === 'manual'
+        ? createQuoteLineFromManualProduct(product)
+        : createQuoteLineFromCatalogProduct(product);
+      return { ...prev, lineas: newLines };
+    });
   };
 
+  const addEmptyLine = () => {
+    if (!quote.lineas.some((line) => line.productId === null)) {
+      setQuote(prev => ({
+        ...prev,
+        lineas: [...prev.lineas, { productId: null, productName: '', quantity: 1, price: 0 }],
+      }));
+    }
+  };
+
+  const cancelSearchLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, lineIndex) => lineIndex !== index) }));
   const removeLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, i) => i !== index) }));
 
   // NUEVO: Manejar cambio de tienda y generar número
@@ -797,7 +902,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                 <tr key={index} className="border-b">
                   <td className="px-6 py-2">
                     {line.productId === null ? (
-                      <p className="text-muted-foreground">Producto sin seleccionar</p>
+                      isLegacyQuote
+                        ? <p className="text-muted-foreground">Producto sin seleccionar</p>
+                        : <InlineProductSearch db={db} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} />
                     ) : (
                       <div>
                         <p>{line.productName}</p>
