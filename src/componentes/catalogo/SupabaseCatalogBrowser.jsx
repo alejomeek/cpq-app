@@ -100,6 +100,7 @@ export default function SupabaseCatalogBrowser() {
                 <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
                 {product.vendor && <p className="text-sm text-muted-foreground">{product.vendor}</p>}
                 <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
+                <p className="text-xs text-muted-foreground">{product.taxable === false ? 'Precio Shopify · Exento' : 'Precio Shopify · IVA incluido'}</p>
                 <div className="flex flex-wrap gap-1">
                   {product.taxable === false && <Badge variant="outline">Exento</Badge>}
                   {product.inventoryTracked && <Badge variant="secondary">Inventario controlado</Badge>}

@@ -103,6 +103,8 @@ la instantánea suficientes para que no se requiera consultar el catálogo vivo:
   productName: "Título cotizado",
   quantity: 1,
   price: 12345.67,          // precio unitario antes de IVA y descuento global
+  unitPriceIncludingTax: 14691.15, // precio Shopify publicado; sólo Shopify gravable
+  catalogPriceIncludesTax: true,
   taxable: true,
   taxRate: 0.19,
   imageUrl: "https://...", // primera imagen disponible; puede ser null
@@ -118,6 +120,12 @@ PDF, descarga y envío de correo calcularán imágenes e impuestos a partir de l
 línea almacenada. Para cotizaciones antiguas sin estos campos se mantendrán los
 valores guardados de la cotización y se usará un fallback visual seguro; nunca
 se sustituirá precio o impuesto histórico con el producto actual de Supabase.
+
+Para Shopify, `catalog_products.price` es el precio publicado con IVA incluido
+en productos gravables. Al crear una línea nueva CPQ lo conserva en
+`unitPriceIncludingTax`, calcula `price` como base antes de IVA y deja el total
+de la línea igual al precio publicado. Esta conversión se aplica sólo a nuevas
+líneas Shopify; no se reescriben cotizaciones ya guardadas.
 
 ## Plan de ejecución
 

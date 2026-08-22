@@ -36,6 +36,14 @@ export async function fetchCatalogProducts(user, { q = '', page = 1, pageSize = 
  */
 export function createQuoteLineFromCatalogProduct(product, quantity = 1) {
   const taxable = product.taxable !== false;
+  const taxRate = taxable ? 0.19 : 0;
+  // Shopify publica el precio final al cliente con IVA incluido. Las líneas de
+  // CPQ almacenan la base antes de IVA para que PDF, impuestos y totales usen
+  // una sola convención.
+  const unitPriceIncludingTax = Number(product.price) || 0;
+  const unitPriceBeforeTax = taxable
+    ? unitPriceIncludingTax / (1 + taxRate)
+    : unitPriceIncludingTax;
 
   return {
     source: 'shopify',
@@ -46,9 +54,11 @@ export function createQuoteLineFromCatalogProduct(product, quantity = 1) {
     sku: product.sku,
     productName: product.title,
     quantity: Number(quantity) || 1,
-    price: Number(product.price) || 0,
+    price: unitPriceBeforeTax,
+    unitPriceIncludingTax,
+    catalogPriceIncludesTax: taxable,
     taxable,
-    taxRate: taxable ? 0.19 : 0,
+    taxRate,
     imageUrl: product.imageUrl || null,
     productSnapshotAt: new Date().toISOString(),
   };

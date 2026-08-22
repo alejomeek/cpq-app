@@ -134,6 +134,7 @@ const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
                 <p className="text-sm mt-1">SKU: {product.sku || 'N/A'}</p>
                 <p className="text-xs font-medium mt-1">{product.source === 'manual' ? 'Producto manual' : 'Shopify sincronizado'}</p>
                 <p className="text-xl font-semibold text-primary mt-2">${(product.price || 0).toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">{product.source === 'shopify' ? (product.taxable === false ? 'Precio Shopify · Exento' : 'Precio Shopify · IVA incluido') : 'Precio manual antes de IVA'}</p>
               </div>
               <div className="mt-4">
                 {cart[`${product.source}:${product.id}`]?.quantity > 0 ? (
