@@ -34,8 +34,12 @@ cambios locales de usuario. No es base de este trabajo y no se debe modificar.
 3. CPQ no crea, actualiza, borra ni corrige `catalog_products`, sus relaciones,
    el watermark ni la sincronización. Toda corrección de catálogo ocurre en
    Shopify y llega por la sincronización existente.
-4. **No se hará reconciliación previa** entre los productos Firebase y
-   Supabase. El corte no está condicionado a esa comparación.
+4. El corte inicial no depende de reconciliación. Posteriormente se aprobó una
+   **limpieza única y controlada**: se auditan productos manuales Firebase con
+   SKU normalizado exacto contra filas activas de Supabase y sólo se borran de
+   Firebase después de revisar el reporte mínimo y confirmar el borrado. No se
+   guarda backup de datos completos. No hay migración, escritura ni modificación
+   alguna en Supabase.
 5. Los productos manuales Firebase continúan siendo operativos. No se migran,
    duplican ni sincronizan hacia Supabase bajo ninguna circunstancia.
 6. Cada línea de cotización debe conservar su instantánea histórica. Un cambio
@@ -200,13 +204,24 @@ se sustituirá precio o impuesto histórico con el producto actual de Supabase.
 - [ ] Actualizar este documento con el commit, fecha de corte y cualquier
   excepción conocida.
 
+### Fase 7 — Limpieza puntual de duplicados manuales
+
+- [x] Crear un script local de auditoría que compare SKU exacto y no escriba
+  en ninguna fuente.
+- [x] Ejecutar la auditoría para el usuario CPQ objetivo y revisar los
+  candidatos, productos sin SKU y posibles excepciones.
+- [x] Borrar por lotes sólo los documentos candidatos confirmados, con una
+  segunda orden explícita y un recibo local de borrado.
+- [ ] Verificar en la interfaz que el catálogo manual disminuyó y que las
+  cotizaciones históricas siguen intactas.
+
 ## Fuera de alcance
 
 - Modificar Shopify, Supabase `catalog_products`, imágenes, categorías,
   watermark, servicio `oms-catalog-sync`, n8n o webhooks.
-- Importar, migrar, reconciliar o sincronizar productos Firebase hacia
-  Supabase.
-- Borrar o mover los productos Firebase manuales.
+- Importar, migrar o sincronizar productos Firebase hacia Supabase.
+- Cualquier borrado adicional de productos Firebase manuales fuera de la
+  limpieza puntual, auditada y confirmada de la Fase 7.
 - Reservar inventario, descontar stock o implementar listas de precio por
   cliente.
 - Cambiar las cotizaciones antiguas para igualarlas al catálogo actual.
@@ -229,9 +244,10 @@ La migración está terminada sólo cuando:
 ## Estado actual
 
 - Fecha: 2026-08-22.
-- Fase activa: **validación integrada y configuración segura de secretos**.
-- Decisión confirmada: no habrá reconciliación previa Firebase ↔ Supabase y los
-  productos manuales permanecen en Firebase para siempre.
+- Fase activa: **validación funcional final en producción**.
+- Decisión confirmada: no hubo reconciliación como condición de corte. La
+  limpieza posterior aprobada elimina sólo duplicados exactos de Firebase; los
+  manuales restantes continúan exclusivamente en Firebase.
 - Implementación local: `api/catalog-products.js` expone sólo lectura de
   Shopify/Supabase; la página Catálogo conserva una pestaña independiente para
   productos manuales Firebase; el selector de cotización combina ambas fuentes
@@ -243,8 +259,11 @@ La migración está terminada sólo cuando:
   línea Shopify y una manual. `vercel dev` también enruta correctamente la API
   local desde que el script `dev` respeta el puerto asignado por Vercel. La
   prueba completa con un usuario Firebase autenticado sigue pendiente.
-- Bloqueo para prueba integrada y despliegue: Vercel todavía no tiene
-  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FIREBASE_PROJECT_ID`,
-  `FIREBASE_CLIENT_EMAIL` ni `FIREBASE_PRIVATE_KEY`. No se deben obtener ni
-  copiar secretos desde el worktree OMS; deben configurarse de forma segura en
-  los entornos de CPQ.
+- Producción: las credenciales server-side se configuraron de forma segura en
+  Vercel y el commit `dcf3299` se desplegó desde `main`. La interfaz confirmó
+  la carga autenticada del catálogo Shopify desde Supabase.
+- Limpieza ejecutada el 2026-08-22 para el usuario CPQ objetivo: se eliminaron
+  8.734 documentos manuales que coincidían por SKU exacto con Supabase activo.
+  La auditoría posterior confirmó 99 productos manuales restantes: 96 con SKU
+  no disponible en Supabase y 3 sin SKU. No hubo omisiones, escritura en
+  Supabase ni respaldo de datos completos.

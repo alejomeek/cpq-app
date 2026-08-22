@@ -30,6 +30,9 @@ build
 .env.production
 .env.development
 
+# Informes locales de auditoría antes de limpiar productos manuales.
+catalog-cleanup-reports/
+
 # Firebase
 .firebase
 .firebaserc
