@@ -120,11 +120,15 @@ const SimpleProductForm = ({ db, product: initialProduct, onBack, onSave }) => {
       }
 
       const productToSave = {
+        source: 'manual',
         nombre: product.nombre.trim(),
         descripcion: product.descripcion.trim(),
         sku: product.sku.trim(),
         precioBase: parseFloat(product.precioBase) || 0,
+        unitPrice: parseFloat(product.precioBase) || 0,
         precio_iva_incluido: parseFloat(product.precioBase) || 0,
+        taxable: !product.exento_iva,
+        taxRate: product.exento_iva ? 0 : 0.19,
         exento_iva: product.exento_iva,
         imagen_url: imagen_url,
         inventory: 0,
@@ -206,7 +210,7 @@ const SimpleProductForm = ({ db, product: initialProduct, onBack, onSave }) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label htmlFor="precioBase" className="text-sm font-medium text-foreground">Precio con IVA *</label>
+              <label htmlFor="precioBase" className="text-sm font-medium text-foreground">Precio unitario antes de IVA *</label>
               <Input
                 id="precioBase"
                 name="precioBase"

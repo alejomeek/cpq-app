@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, serverTimestamp, Timestamp, query, where } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
 import { getFunctions } from 'firebase/functions';
 import { pdf } from '@react-pdf/renderer';
 import QuotePDF from './QuotePDF.jsx';
-import ProductoForm from '../catalogo/ProductoForm.jsx';
-import { obtenerSiguienteNumeroCotizacion } from '../../utils/firestoreUtils.js';
 import { getNextQuoteNumber } from '../../utils/quoteNumbering.js';
+import {
+  createQuoteLineFromCatalogProduct,
+  createQuoteLineFromManualProduct,
+  fetchCatalogProducts,
+  normalizeManualProduct,
+} from '@/lib/catalogApi';
 import { Button } from '@/ui/button.jsx';
 import { Input } from '@/ui/input.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card.jsx';
@@ -37,14 +41,73 @@ const NotificationModal = ({ message, onClose }) => (
   </div>
 );
 
-// --- Sub-componente: ProductCatalogModal (sin cambios) ---
-const ProductCatalogModal = ({ products, onAddToCart, onClose, initialCart }) => {
-  const [cart, setCart] = useState(initialCart);
-  const handleQuantityChange = (productId, quantity) => {
+// --- Sub-componente: ProductCatalogModal ---
+const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
+  const { user } = useAuth();
+  const [cart, setCart] = useState({});
+  const [query, setQuery] = useState('');
+  const [shopifyProducts, setShopifyProducts] = useState([]);
+  const [manualProducts, setManualProducts] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [loadingShopify, setLoadingShopify] = useState(true);
+  const [loadingManual, setLoadingManual] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let active = true;
+
+    getDocs(collection(db, 'usuarios', user.uid, 'productos'))
+      .then((snapshot) => {
+        if (active) setManualProducts(snapshot.docs.map((manual) => normalizeManualProduct({ id: manual.id, ...manual.data() })));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || 'No se pudieron cargar los productos manuales.');
+      })
+      .finally(() => {
+        if (active) setLoadingManual(false);
+      });
+
+    return () => { active = false; };
+  }, [db, user]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      if (!user) return;
+      setLoadingShopify(true);
+      setError(null);
+      try {
+        const result = await fetchCatalogProducts(user, { q: query, pageSize: 50, signal: controller.signal });
+        setShopifyProducts(result.products.map((product) => ({ ...product, source: 'shopify' })));
+      } catch (loadError) {
+        if (loadError.name !== 'AbortError') setError(loadError.message || 'No se pudo cargar el catálogo.');
+      } finally {
+        if (!controller.signal.aborted) setLoadingShopify(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [query, user]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredManualProducts = manualProducts.filter((product) => !normalizedQuery || [product.title, product.sku]
+    .some((value) => value?.toLowerCase().includes(normalizedQuery)));
+  const products = [
+    ...(sourceFilter === 'manual' ? [] : shopifyProducts),
+    ...(sourceFilter === 'shopify' ? [] : filteredManualProducts),
+  ];
+  const loading = (sourceFilter !== 'manual' && loadingShopify) || (sourceFilter !== 'shopify' && loadingManual);
+
+  const handleQuantityChange = (product, quantity) => {
+    const cartKey = `${product.source}:${product.id}`;
     const newQuantity = Math.max(0, quantity);
     const newCart = { ...cart };
-    if (newQuantity === 0) delete newCart[productId];
-    else newCart[productId] = newQuantity;
+    if (newQuantity === 0) delete newCart[cartKey];
+    else newCart[cartKey] = { product, quantity: newQuantity };
     setCart(newCart);
   };
   return (
@@ -56,103 +119,42 @@ const ProductCatalogModal = ({ products, onAddToCart, onClose, initialCart }) =>
             <X className="w-6 h-6" /><span className="sr-only">Cerrar</span>
           </Button>
         </div>
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por título, SKU o proveedor..." className="mb-4" autoFocus />
+        <div className="mb-4 flex gap-2">
+          <Button variant={sourceFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setSourceFilter('all')}>Todos</Button>
+          <Button variant={sourceFilter === 'shopify' ? 'default' : 'outline'} size="sm" onClick={() => setSourceFilter('shopify')}>Shopify</Button>
+          <Button variant={sourceFilter === 'manual' ? 'default' : 'outline'} size="sm" onClick={() => setSourceFilter('manual')}>Manuales</Button>
+        </div>
+        {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
         <div className="flex-grow overflow-y-auto grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 pr-4">
-          {products.map(product => (
-            <div key={product.id} className="bg-muted p-4 rounded-lg flex flex-col justify-between shadow-lg text-muted-foreground">
+          {loading ? <p className="col-span-full py-12 text-center text-muted-foreground">Cargando productos...</p> : products.map(product => (
+            <div key={`${product.source}:${product.id}`} className="bg-muted p-4 rounded-lg flex flex-col justify-between shadow-lg text-muted-foreground">
               <div className="flex-grow">
-                <h3 className="font-bold text-foreground">{product.nombre}</h3>
+                <h3 className="font-bold text-foreground">{product.title}</h3>
                 <p className="text-sm mt-1">SKU: {product.sku || 'N/A'}</p>
-                <p className="text-xl font-semibold text-primary mt-2">${(product.precioBase || 0).toFixed(0)}</p>
+                <p className="text-xs font-medium mt-1">{product.source === 'manual' ? 'Producto manual' : 'Shopify sincronizado'}</p>
+                <p className="text-xl font-semibold text-primary mt-2">${(product.price || 0).toFixed(0)}</p>
               </div>
               <div className="mt-4">
-                {cart[product.id] > 0 ? (
+                {cart[`${product.source}:${product.id}`]?.quantity > 0 ? (
                   <div className="flex items-center justify-between">
-                    <Button variant="secondary" size="icon" onClick={() => handleQuantityChange(product.id, (cart[product.id] || 0) - 1)} className="w-10 h-10 rounded-md font-bold text-lg">-</Button>
-                    <span className="font-bold text-lg text-foreground">{cart[product.id]}</span>
-                    <Button size="icon" onClick={() => handleQuantityChange(product.id, (cart[product.id] || 0) + 1)} className="w-10 h-10 rounded-md font-bold text-lg">+</Button>
+                    <Button variant="secondary" size="icon" onClick={() => handleQuantityChange(product, (cart[`${product.source}:${product.id}`]?.quantity || 0) - 1)} className="w-10 h-10 rounded-md font-bold text-lg">-</Button>
+                    <span className="font-bold text-lg text-foreground">{cart[`${product.source}:${product.id}`]?.quantity}</span>
+                    <Button size="icon" onClick={() => handleQuantityChange(product, (cart[`${product.source}:${product.id}`]?.quantity || 0) + 1)} className="w-10 h-10 rounded-md font-bold text-lg">+</Button>
                   </div>
-                ) : (<Button onClick={() => handleQuantityChange(product.id, 1)} className="w-full flex items-center justify-center gap-2"> <ShoppingCart className="w-5 h-5" /> Añadir </Button>)}
+                ) : (<Button onClick={() => handleQuantityChange(product, 1)} className="w-full flex items-center justify-center gap-2"> <ShoppingCart className="w-5 h-5" /> Añadir </Button>)}
               </div>
             </div>
           ))}
         </div>
-        <div className="pt-6 border-t"><Button onClick={() => onAddToCart(cart)} className="w-full"> Volver a la cotización </Button></div>
+        <div className="pt-6 border-t"><Button onClick={() => onAddToCart(Object.values(cart))} className="w-full"> Volver a la cotización </Button></div>
       </div>
     </div>
   );
 };
 
-// --- Sub-componente: InlineProductSearch (sin cambios) ---
-const InlineProductSearch = ({ products, onProductSelect, onCancel, onCreateNew, index }) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-  const inputRef = useRef(null);
-  const searchRef = useRef(null);
-
-  const updatePosition = useCallback(() => {
-    if (inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom, left: rect.left, width: rect.width });
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        onCancel(index);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [searchRef, onCancel, index]);
-
-  useEffect(() => {
-    if (results.length > 0 || (query.length > 0 && results.length === 0)) {
-      updatePosition();
-      window.addEventListener('scroll', updatePosition, true);
-      window.addEventListener('resize', updatePosition);
-      return () => {
-        window.removeEventListener('scroll', updatePosition, true);
-        window.removeEventListener('resize', updatePosition);
-      };
-    }
-  }, [results.length, query, updatePosition]);
-
-  const handleQueryChange = (e) => {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
-    if (newQuery.length > 0) {
-      setResults(products.filter(p => p.nombre.toLowerCase().includes(newQuery.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(newQuery.toLowerCase()))));
-    }
-    else { setResults([]); }
-  };
-
-  const selectProduct = (product) => { onProductSelect(index, product); };
-
-  return (
-    <div ref={searchRef}>
-      <Input ref={inputRef} type="text" value={query} onChange={handleQueryChange} placeholder="Buscar producto..." autoFocus />
-      {(results.length > 0 || query.length > 0) && (
-        <div className="fixed z-20 bg-popover border rounded-lg max-h-60 overflow-y-auto shadow-lg text-popover-foreground" style={{ top: `${position.top}px`, left: `${position.left}px`, width: `${position.width}px` }}>
-          {results.map(product => (
-            <div key={product.id} onClick={() => selectProduct(product)} className="p-3 cursor-pointer hover:bg-accent border-b">
-              <p className="font-semibold">{product.nombre}</p>
-              <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'}</p>
-            </div>
-          ))}
-          <div onClick={() => onCreateNew(query)} className="p-3 cursor-pointer text-primary hover:bg-accent">
-            <p className="font-semibold">+ Crear "{query}"</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 // --- Sub-componente: DownloadPDFButton ---
-const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, total, quoteStyleName, products }) => {
-  const { user } = useAuth();
+const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, total, quoteStyleName }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const styleToUse = quoteStyleName || 'Bubble';
 
@@ -221,7 +223,7 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
   };
 
   // Función para procesar solo imágenes que necesitan conversión (solo Firebase Storage)
-  const convertOnlyFirebaseImages = async (allProducts, quoteLines, batchSize = 3) => {
+  const _convertOnlyFirebaseImages = async (allProducts, quoteLines, batchSize = 3) => {
     // 1. Obtener solo los productos que están en la cotización
     const productIdsInQuote = quoteLines.map(line => line.productId);
     const productsInQuote = allProducts.filter(p => productIdsInQuote.includes(p.id));
@@ -275,11 +277,6 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
       const currentClient = clients.find(c => c.id === quote.clienteId);
       if (!currentClient) throw new Error("Client data not found");
 
-      // Convertir SOLO las imágenes de Firebase Storage que están en esta cotización
-      const productsWithBase64Images = await convertOnlyFirebaseImages(products, quote.lineas, 3);
-
-      console.log('✅ Imágenes procesadas correctamente');
-
       // Cargar logo directamente desde Wix para mayor velocidad
       const logoUrl = "https://static.wixstatic.com/media/7909ff_fb58218a20af4d04b6b325b43056b7b2~mv2.png/v1/fill/w_287,h_61,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo_versi%C3%83%C2%B3n_final_JYE.png";
       const companyLogoBase64 = logoUrl;
@@ -294,7 +291,6 @@ const DownloadPDFButton = ({ quoteId, loading, clients, quote, subtotal, tax, to
           companyLogoUrl: companyLogoBase64  // Base64 en vez de URL
         }}
         client={currentClient}
-        products={productsWithBase64Images}
         styleName={styleToUse}
       />;
       const blob = await pdf(doc).toBlob();
@@ -343,13 +339,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     discount: 0,          // NUEVO: Descuento en porcentaje (0-100)
   });
   const [clients, setClients] = useState([]);
-  const [products, setProducts] = useState([]);
   const [paymentTerms, setPaymentTerms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState(null);
-  const [activeLineIndex, setActiveLineIndex] = useState(null);
   const [errorNotification, setErrorNotification] = useState(null);
   const [canSave, setCanSave] = useState(true);
   const [globalConfig, setGlobalConfig] = useState(null);
@@ -362,14 +354,6 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   // NUEVO: Hook de envío de email
   const functions = getFunctions();
   const { sendQuoteEmail, sending: sendingEmail } = useSendQuoteEmail(functions);
-
-  // --- Funciones de Carga ---
-  const fetchProducts = useCallback(async () => {
-    // ¡CAMBIO! Ruta anidada con user.uid
-    if (!user || !user.uid) return;
-    const productsSnap = await getDocs(collection(db, "usuarios", user.uid, "productos"));
-    setProducts(productsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-  }, [db, user]);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -413,8 +397,6 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
         setEmailFeatureEnabled(featuresSnap.exists() ? (featuresSnap.data().emailEnabled ?? true) : true);
         setLoadingConfig(false);
 
-        await fetchProducts();
-
         if (quoteId) {
           // ¡CAMBIO! Ruta anidada con user.uid
           const quoteRef = doc(db, "usuarios", user.uid, "cotizaciones", quoteId);
@@ -450,29 +432,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       }
     }
     loadInitialData();
-  }, [db, quoteId, fetchProducts, user]);
-
-  const handleOpenProductForm = (productData, index = null) => {
-    setActiveLineIndex(index);
-    if (typeof productData === 'string') {
-      setProductToEdit({ nombre: productData });
-    } else {
-      setProductToEdit(productData);
-    }
-    setIsProductFormOpen(true);
-  };
-
-  const handleCloseProductForm = (newProduct) => {
-    setIsProductFormOpen(false);
-    setProductToEdit(null);
-    if (newProduct) {
-      fetchProducts();
-      if (activeLineIndex !== null && newProduct.id) {
-        handleInlineProductSelect(activeLineIndex, newProduct);
-      }
-    }
-    setActiveLineIndex(null);
-  };
+  }, [db, quoteId, user]);
 
   const handleInputChange = (e) => setQuote(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -483,21 +443,10 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     setQuote(prev => ({ ...prev, lineas: newLines }));
   };
 
-  const handleInlineProductSelect = (index, product) => {
-    setQuote(prev => {
-      const newLines = [...prev.lineas];
-      newLines[index] = { productId: product.id, productName: product.nombre, quantity: 1, price: product.precioBase || 0 };
-      return { ...prev, lineas: newLines };
-    });
-  };
-
   const addEmptyLine = () => {
-    if (!quote.lineas.some(line => line.productId === null)) {
-      setQuote(prev => ({ ...prev, lineas: [...prev.lineas, { productId: null, productName: '', quantity: 1, price: 0 }] }));
-    }
+    setIsCatalogOpen(true);
   };
 
-  const cancelSearchLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, i) => i !== index) }));
   const removeLine = (index) => setQuote(prev => ({ ...prev, lineas: prev.lineas.filter((_, i) => i !== index) }));
 
   // NUEVO: Manejar cambio de tienda y generar número
@@ -555,7 +504,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     }
     setLoading(true);
     setErrorNotification(null);
-    const { subtotal, tax, fleteValue, discountAmount, total } = calculateTotals();
+    const { subtotal, tax, fleteValue, total } = calculateTotals();
     const selectedClient = clients.find(c => c.id === quote.clienteId);
     const quoteData = {
       numero: quote.numero,
@@ -623,7 +572,6 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           ...client,
           email: email // Usar el email del dialog (puede ser editado)
         },
-        products: products,
         quoteStyleName: globalConfig?.quoteStyle || 'Bubble'
       });
 
@@ -638,18 +586,35 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   // --- Función de Cálculo (MODIFICADA para incluir flete, IVA selectivo y descuento) ---
   const calculateTotals = () => {
     const lineasValidas = Array.isArray(quote.lineas) ? quote.lineas : [];
+    const isLegacyQuote = Boolean(
+      quoteId && lineasValidas.some((line) => !line.productSnapshotAt)
+    );
+
+    // Las cotizaciones previas al catálogo Supabase no contienen la regla de
+    // impuesto por línea. Conservamos sus totales persistidos y no los
+    // recalculamos con productos actuales, para no reescribir su historia.
+    if (isLegacyQuote) {
+      return {
+        subtotal: Number(quote.subtotal) || 0,
+        tax: Number(quote.impuestos) || 0,
+        fleteValue: Number(quote.fleteValue) || 0,
+        discountAmount: 0,
+        total: Number(quote.total) || 0,
+      };
+    }
 
     // Subtotal (sin cambios)
     const subtotal = lineasValidas.reduce((acc, line) =>
       acc + ((parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0)), 0
     );
 
-    // IVA solo para productos NO exentos
+    // Cada línea conserva la regla tributaria con la que se cotizó.
     const tax = lineasValidas.reduce((acc, line) => {
-      const product = products.find(p => p.id === line.productId);
-      if (product?.exento_iva) return acc; // Sin IVA para productos exentos
       const lineTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.price) || 0);
-      return acc + (lineTotal * 0.19);
+      const taxRate = Number.isFinite(Number(line.taxRate))
+        ? Number(line.taxRate)
+        : (line.taxable === false ? 0 : 0.19);
+      return acc + (lineTotal * taxRate);
     }, 0);
 
     // Subtotal antes de descuento
@@ -668,12 +633,14 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     return { subtotal, tax, fleteValue, discountAmount, total };
   };
   const { subtotal, tax, fleteValue, discountAmount, total } = calculateTotals();
+  const isLegacyQuote = Boolean(quoteId && quote.lineas.some((line) => !line.productSnapshotAt));
 
-  const handleAddToCart = (cart) => {
-    const newLineas = Object.entries(cart).map(([productId, quantity]) => {
-      const product = products.find(p => p.id === productId);
-      return { productId, productName: product?.nombre || '', quantity, price: product?.precioBase || 0 };
-    });
+  const handleAddToCart = (cartItems) => {
+    const newLineas = cartItems.map(({ product, quantity }) => (
+      product.source === 'manual'
+        ? createQuoteLineFromManualProduct(product, quantity)
+        : createQuoteLineFromCatalogProduct(product, quantity)
+    ));
     setQuote(prev => ({ ...prev, lineas: [...prev.lineas.filter(l => l.productId !== null), ...newLineas] }));
     setIsCatalogOpen(false);
   };
@@ -684,8 +651,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
   return (
     <div className="space-y-8">
       {errorNotification && <NotificationModal message={errorNotification.message} onClose={() => setErrorNotification(null)} />}
-      {isCatalogOpen && <ProductCatalogModal products={products} onClose={() => setIsCatalogOpen(false)} onAddToCart={handleAddToCart} initialCart={quote.lineas.reduce((acc, line) => { if (line.productId) acc[line.productId] = line.quantity; return acc; }, {})} />}
-      {isProductFormOpen && <ProductoForm db={db} product={productToEdit} onClose={handleCloseProductForm} />}
+      {isCatalogOpen && <ProductCatalogModal db={db} onClose={() => setIsCatalogOpen(false)} onAddToCart={handleAddToCart} />}
 
       <div>
         <div className="flex justify-between items-center">
@@ -706,7 +672,6 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
               tax={tax}
               total={total}
               quoteStyleName={globalConfig?.quoteStyle}
-              products={products}
             />
             {/* Botón Enviar por Email */}
             {quoteId && emailFeatureEnabled && (
@@ -809,6 +774,11 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
 
       <div>
         <h2 className="text-xl font-bold mb-4 text-foreground">Líneas de Cotización</h2>
+        {isLegacyQuote && (
+          <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            Esta cotización es histórica. Sus líneas y totales se conservan sin recalcularse con el catálogo actual.
+          </p>
+        )}
         <div className="overflow-x-auto bg-card rounded-lg border shadow">
           <table className="w-full text-sm text-left text-foreground">
             <thead className="text-xs uppercase bg-muted text-muted-foreground">
@@ -826,18 +796,23 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                 <tr key={index} className="border-b">
                   <td className="px-6 py-2">
                     {line.productId === null ? (
-                      <InlineProductSearch products={products} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} onCreateNew={(query) => handleOpenProductForm(query, index)} />
-                    ) : (line.productName)}
+                      <p className="text-muted-foreground">Producto sin seleccionar</p>
+                    ) : (
+                      <div>
+                        <p>{line.productName}</p>
+                        {line.source && <p className="text-xs text-muted-foreground">{line.source === 'manual' ? 'Producto manual' : 'Shopify sincronizado'}{line.sku ? ` · ${line.sku}` : ''}</p>}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" /></td>
-                  <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" /></td>
+                  <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" disabled={isLegacyQuote} /></td>
+                  <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" disabled={isLegacyQuote} /></td>
 
                   {/* IVA Unitario */}
                   <td className="px-6 py-2 text-right text-foreground">
                     {(() => {
-                      const product = products.find(p => p.id === line.productId);
-                      if (product?.exento_iva) return 'Exento';
-                      const ivaUnit = (line.price || 0) * 0.19;
+                      const taxRate = Number.isFinite(Number(line.taxRate)) ? Number(line.taxRate) : (line.taxable === false ? 0 : 0.19);
+                      if (taxRate === 0) return 'Exento';
+                      const ivaUnit = (line.price || 0) * taxRate;
                       return `$${ivaUnit.toFixed(0)}`;
                     })()}
                   </td>
@@ -845,16 +820,16 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                   {/* Total Línea (con IVA) */}
                   <td className="px-6 py-2 text-right font-semibold text-foreground">
                     {(() => {
-                      const product = products.find(p => p.id === line.productId);
                       const precioSinIva = line.price || 0;
-                      const ivaUnit = product?.exento_iva ? 0 : (precioSinIva * 0.19);
+                      const taxRate = Number.isFinite(Number(line.taxRate)) ? Number(line.taxRate) : (line.taxable === false ? 0 : 0.19);
+                      const ivaUnit = precioSinIva * taxRate;
                       const precioConIva = precioSinIva + ivaUnit;
                       const totalLinea = (line.quantity || 0) * precioConIva;
                       return `$${totalLinea.toFixed(0)}`;
                     })()}
                   </td>
                   <td className="px-2 py-2">
-                    <Button variant="ghost" size="icon" onClick={() => removeLine(index)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Button variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={isLegacyQuote} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </td>
@@ -864,12 +839,9 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           </table>
         </div>
         <div className="mt-4 flex items-center gap-4">
-          <Button variant="link" className="p-0 h-auto" onClick={addEmptyLine}>+ Añadir un producto</Button>
-          <Button variant="link" className="p-0 h-auto" onClick={() => setIsCatalogOpen(true)}>
+          <Button variant="link" className="p-0 h-auto" onClick={addEmptyLine} disabled={isLegacyQuote}>+ Añadir un producto</Button>
+          <Button variant="link" className="p-0 h-auto" onClick={() => setIsCatalogOpen(true)} disabled={isLegacyQuote}>
             Abrir Catálogo
-          </Button>
-          <Button variant="link" className="p-0 h-auto" onClick={() => handleOpenProductForm(null, quote.lineas.length)}>
-            + Crear Producto
           </Button>
         </div>
       </div>

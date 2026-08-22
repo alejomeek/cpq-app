@@ -32,9 +32,7 @@ export const createColumns = (
   onDeleteQuote,
   clients,
   quoteStyleName,
-  onSendEmail, // callback para enviar email
-  products, // productos para mostrar imágenes en PDF
-  userId // NUEVO: userId para cargar logo
+  onSendEmail,
 ) => [
     {
       id: "select",
@@ -161,7 +159,6 @@ export const createColumns = (
                         <QuotePDF
                           quote={quoteWithLogo}
                           client={client}
-                          products={products}
                           styleName={quoteStyleName}
                         />
                       ).toBlob();

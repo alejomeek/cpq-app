@@ -231,13 +231,7 @@ const formatDate = (date) => {
 };
 
 // === COMPONENTE PRINCIPAL ===
-const QuotePDF = ({ quote, client, products = [] }) => {
-  // Función auxiliar para obtener la imagen del producto
-  const getProductImage = (productId) => {
-    const product = products.find(p => p.id === productId);
-    return product?.imagen_url || 'https://placehold.co/200x200/e5e7eb/6b7280?text=Sin+Imagen';
-  };
-
+const QuotePDF = ({ quote, client }) => {
   return (
     <Document author="DIDACTICOS JUGANDO Y EDUCANDO SAS" title={`Cotización ${quote.numero}`}>
       <Page size="A4" style={styles.page}>
@@ -304,11 +298,10 @@ const QuotePDF = ({ quote, client, products = [] }) => {
           </View>
 
           {quote.lineas.map((line, i) => {
-            const product = products.find(p => p.id === line.productId);
-
             // line.price ya es el precioBase (sin IVA)
             const precioSinIva = line.price;
-            const ivaUnitario = product?.exento_iva ? 0 : (line.price * 0.19);
+            const taxRate = Number.isFinite(Number(line.taxRate)) ? Number(line.taxRate) : (line.taxable === false ? 0 : 0.19);
+            const ivaUnitario = line.price * taxRate;
             const precioConIva = precioSinIva + ivaUnitario;
             const totalLinea = line.quantity * precioConIva;
 
@@ -317,7 +310,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
                 {/* Imagen + Descripción */}
                 <View style={[styles.colDescription, styles.productInfo]}>
                   <Image
-                    src={getProductImage(line.productId)}
+                    src={line.imageUrl || 'https://placehold.co/200x200/e5e7eb/6b7280?text=Sin+Imagen'}
                     style={styles.productImage}
                   />
                   <View style={styles.productText}>
@@ -327,7 +320,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
 
                 {/* SKU */}
                 <View style={[styles.colSKU]}>
-                  <Text>{product?.sku || ''}</Text>
+                  <Text>{line.sku || ''}</Text>
                 </View>
 
                 {/* Cantidad */}
@@ -342,7 +335,7 @@ const QuotePDF = ({ quote, client, products = [] }) => {
 
                 {/* IVA Unitario */}
                 <View style={[styles.colIvaUnit]}>
-                  <Text>{product?.exento_iva ? 'Exento' : formatCurrency(ivaUnitario)}</Text>
+                  <Text>{taxRate === 0 ? 'Exento' : formatCurrency(ivaUnitario)}</Text>
                 </View>
 
                 {/* Total Línea (Precio sin IVA + IVA) */}

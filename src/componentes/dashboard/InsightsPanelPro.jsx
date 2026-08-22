@@ -159,8 +159,8 @@ const InsightsPanelPro = ({ db }) => {
           impuestos: data.impuestos || 0,
           fechaCreacion: fechaCreacion ? fechaCreacion.toISOString() : null,
           vencimiento: vencimiento ? vencimiento.toISOString() : null,
-          items: data.items || [],
-          itemsCount: data.items?.length || 0
+          items: data.lineas || data.items || [],
+          itemsCount: (data.lineas || data.items || []).length
         };
       });
 
@@ -168,14 +168,6 @@ const InsightsPanelPro = ({ db }) => {
       const clientesRef = collection(db, "usuarios", user.uid, "clientes");
       const clientesSnapshot = await getDocs(clientesRef);
       const clientes = clientesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // 3. Obtener TODOS los productos
-      const productosRef = collection(db, "usuarios", user.uid, "productos");
-      const productosSnapshot = await getDocs(productosRef);
-      const productos = productosSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
@@ -205,9 +197,10 @@ const InsightsPanelPro = ({ db }) => {
 
       cotizaciones.forEach(cotizacion => {
         cotizacion.items?.forEach(prod => {
-          if (!productosMap.has(prod.nombre)) {
-            productosMap.set(prod.nombre, {
-              nombre: prod.nombre,
+          const nombre = prod.productName || prod.nombre || 'Producto sin nombre';
+          if (!productosMap.has(nombre)) {
+            productosMap.set(nombre, {
+              nombre,
               vecesCotizado: 0,
               cantidadTotal: 0,
               montoTotal: 0,
@@ -215,10 +208,11 @@ const InsightsPanelPro = ({ db }) => {
             });
           }
 
-          const producto = productosMap.get(prod.nombre);
+          const producto = productosMap.get(nombre);
           producto.vecesCotizado++;
-          producto.cantidadTotal += prod.cantidad || 0;
-          producto.montoTotal += prod.subtotal || 0;
+          const cantidad = prod.quantity ?? prod.cantidad ?? 0;
+          producto.cantidadTotal += cantidad;
+          producto.montoTotal += prod.subtotal ?? (cantidad * (prod.price || 0));
 
           if (cotizacion.estado === 'Ganada') {
             producto.vecesAprobado++;
@@ -322,7 +316,8 @@ const InsightsPanelPro = ({ db }) => {
           }))
         },
         productos: {
-          total: productos.length,
+          // El análisis usa instantáneas de cotizaciones, no el catálogo Firebase.
+          total: null,
           analisis: productosArray
         },
         alertas: {
@@ -574,7 +569,7 @@ const InsightsPanelPro = ({ db }) => {
 };
 
 // Componente para mostrar un insight individual
-const InsightCard = ({ insight, isPredictive = false }) => {
+const InsightCard = ({ insight }) => {
   const getIcon = () => {
     if (insight.tipo === 'oportunidad') return <TrendingUp className="h-5 w-5 text-green-500" />;
     if (insight.tipo === 'advertencia') return <AlertTriangle className="h-5 w-5 text-yellow-500" />;

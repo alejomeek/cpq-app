@@ -1,40 +1,34 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/context/useAuth';
 import ProductList from './ProductList.jsx';
 import ProductTypeSelector from './ProductTypeSelector.jsx';
 import SimpleProductForm from './SimpleProductForm.jsx';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog.jsx";
+import SupabaseCatalogBrowser from './SupabaseCatalogBrowser.jsx';
+import { Button } from '@/ui/button.jsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/tabs.jsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/ui/dialog.jsx';
 
-const CatalogoPage = ({ db, navigate }) => {
-  const { user } = useAuth();
-
+/**
+ * Shopify se consulta en Supabase; los productos manuales son privados y viven
+ * en Firebase. Ninguna acción de esta página escribe en el catálogo Shopify.
+ */
+const CatalogoPage = ({ db }) => {
   const [view, setView] = useState('list');
   const [isTypeSelectorOpen, setIsTypeSelectorOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const handleProductClick = (product) => {
-    console.log("Selected Product:", product);
-    setSelectedProduct(product);
-    // Aquí podrías abrir un modal o navegar a vista de detalles
-    setView('edit');
-  };
-
   const handleAddNewProduct = () => {
-    setSelectedProduct(null); // Limpiar producto seleccionado
+    setSelectedProduct(null);
     setIsTypeSelectorOpen(true);
   };
 
   const handleTypeSelected = (type) => {
     setIsTypeSelectorOpen(false);
-    if (type === 'simple') {
-      setView('simple-form');
-    }
-    // Aquí agregar lógica para otros tipos
+    if (type === 'simple') setView('simple-form');
+  };
+
+  const handleEditProduct = (product) => {
+    setSelectedProduct(product);
+    setView('simple-form');
   };
 
   const handleBackToList = () => {
@@ -42,63 +36,46 @@ const CatalogoPage = ({ db, navigate }) => {
     setSelectedProduct(null);
   };
 
-  const handleEditProduct = (product) => {
-    setSelectedProduct(product);
-    // Determinar el tipo de formulario según el tipo de producto
-    if (product.tipo === 'simple' || !product.tipo) {
-      setView('simple-form');
-    }
-    // Aquí agregar para composite y kit cuando los implementes
-  };
-
-  // Validar autenticación
-  if (!user?.uid) {
+  if (view === 'simple-form') {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-muted-foreground">Cargando catálogo...</p>
-        </div>
-      </div>
+      <SimpleProductForm
+        db={db}
+        product={selectedProduct}
+        onBack={handleBackToList}
+        onSave={handleBackToList}
+      />
     );
   }
 
-  const renderContent = () => {
-    switch (view) {
-      case 'simple-form':
-        return (
-          <SimpleProductForm 
-            db={db} 
-            product={selectedProduct} // Pasar producto si es edición
-            onBack={handleBackToList} 
-            onSave={handleBackToList} 
-          />
-        );
+  return (
+    <div className="w-full">
+      <Tabs defaultValue="shopify" className="w-full">
+        <TabsList>
+          <TabsTrigger value="shopify">Shopify sincronizado</TabsTrigger>
+          <TabsTrigger value="manual">Productos manuales</TabsTrigger>
+        </TabsList>
 
-      case 'list':
-      default:
-        return (
+        <TabsContent value="shopify" className="mt-6">
+          <SupabaseCatalogBrowser />
+        </TabsContent>
+
+        <TabsContent value="manual" className="mt-6">
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            Estos productos son manuales y privados para tu cuenta. No se sincronizan ni migran a Shopify o Supabase.
+          </div>
           <ProductList
             db={db}
-            onProductClick={handleProductClick}
             onEditProduct={handleEditProduct}
             onAddNewProduct={handleAddNewProduct}
           />
-        );
-    }
-  };
+        </TabsContent>
+      </Tabs>
 
-  return (
-    <div className="w-full">
-      {renderContent()}
-
-      {/* Dialog para selector de tipo */}
       <Dialog open={isTypeSelectorOpen} onOpenChange={setIsTypeSelectorOpen}>
         <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Crear Nuevo Producto</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Crear producto manual</DialogTitle></DialogHeader>
           <ProductTypeSelector onSelectType={handleTypeSelected} />
+          <Button variant="ghost" onClick={() => setIsTypeSelectorOpen(false)}>Cancelar</Button>
         </DialogContent>
       </Dialog>
     </div>
