@@ -32,6 +32,16 @@ import { SendEmailDialog } from './SendEmailDialog.jsx';
 import { useSendQuoteEmail } from '@/hooks/useSendQuoteEmail.jsx';
 import { Badge } from '@/ui/badge.jsx';
 import { getStatusStyle, AVAILABLE_STATES } from '@/utils/quoteStates.js';
+
+// Una línea sin producto es sólo un borrador de la interfaz; nunca forma parte
+// de una cotización guardada ni determina si la cotización es histórica.
+const hasSelectedProduct = (line) => Boolean(line?.productId);
+const isHistoricalQuote = (quoteId, lines) => Boolean(
+  quoteId && (Array.isArray(lines) ? lines : []).some(
+    (line) => hasSelectedProduct(line) && !line.productSnapshotAt
+  )
+);
+
 // --- Sub-componente: NotificationModal (sin cambios) ---
 const NotificationModal = ({ message, onClose }) => (
   <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[70]">
@@ -539,10 +549,16 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           const quoteSnap = await getDoc(quoteRef);
           if (quoteSnap.exists()) {
             const data = quoteSnap.data();
+            // Recupera cotizaciones afectadas por una línea vacía guardada por
+            // versiones anteriores. La línea inválida se quitará de Firestore
+            // cuando el usuario guarde de nuevo la cotización.
+            const savedLines = Array.isArray(data.lineas)
+              ? data.lineas.filter(hasSelectedProduct)
+              : [];
             setQuote({
               ...data,
               vencimiento: data.vencimiento ? data.vencimiento.toDate() : null,
-              lineas: data.lineas || [],
+              lineas: savedLines,
               tienda: data.tienda || 'Barranquilla',        // Default para cotizaciones antiguas
               fleteType: data.fleteType || 'incluido',       // Default para cotizaciones antiguas
               fleteValue: data.fleteValue || 0,              // Default para cotizaciones antiguas
@@ -689,7 +705,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
       subtotal,
       impuestos: tax,
       total,
-      lineas: quote.lineas.filter(line => line.productId).map(line => ({
+      lineas: quote.lineas.filter(hasSelectedProduct).map(line => ({
         ...line,
         quantity: parseFloat(line.quantity || 0),
         price: parseFloat(line.price || 0)
@@ -754,15 +770,13 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
 
   // --- Función de Cálculo (MODIFICADA para incluir flete, IVA selectivo y descuento) ---
   const calculateTotals = () => {
-    const lineasValidas = Array.isArray(quote.lineas) ? quote.lineas : [];
-    const isLegacyQuote = Boolean(
-      quoteId && lineasValidas.some((line) => !line.productSnapshotAt)
-    );
+    const lineasValidas = (Array.isArray(quote.lineas) ? quote.lineas : []).filter(hasSelectedProduct);
+    const quoteIsHistorical = isHistoricalQuote(quoteId, lineasValidas);
 
     // Las cotizaciones previas al catálogo Supabase no contienen la regla de
     // impuesto por línea. Conservamos sus totales persistidos y no los
     // recalculamos con productos actuales, para no reescribir su historia.
-    if (isLegacyQuote) {
+    if (quoteIsHistorical) {
       return {
         subtotal: Number(quote.subtotal) || 0,
         tax: Number(quote.impuestos) || 0,
@@ -802,7 +816,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
     return { subtotal, tax, fleteValue, discountAmount, total };
   };
   const { subtotal, tax, fleteValue, discountAmount, total } = calculateTotals();
-  const isLegacyQuote = Boolean(quoteId && quote.lineas.some((line) => !line.productSnapshotAt));
+  const quoteIsHistorical = isHistoricalQuote(quoteId, quote.lineas);
 
   const handleAddToCart = (cartItems) => {
     const newLineas = cartItems.map(({ product, quantity }) => (
@@ -810,7 +824,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
         ? createQuoteLineFromManualProduct(product, quantity)
         : createQuoteLineFromCatalogProduct(product, quantity)
     ));
-    setQuote(prev => ({ ...prev, lineas: [...prev.lineas.filter(l => l.productId !== null), ...newLineas] }));
+    setQuote(prev => ({ ...prev, lineas: [...prev.lineas.filter(hasSelectedProduct), ...newLineas] }));
     setIsCatalogOpen(false);
   };
 
@@ -944,7 +958,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
 
       <div>
         <h2 className="text-xl font-bold mb-4 text-foreground">Líneas de Cotización</h2>
-        {isLegacyQuote && (
+        {quoteIsHistorical && (
           <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             Esta cotización es histórica. Sus líneas y totales se conservan sin recalcularse con el catálogo actual.
           </p>
@@ -966,7 +980,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                 <tr key={index} className="border-b">
                   <td className="px-6 py-2">
                     {line.productId === null ? (
-                      isLegacyQuote
+                      quoteIsHistorical
                         ? <p className="text-muted-foreground">Producto sin seleccionar</p>
                         : <InlineProductSearch db={db} index={index} onProductSelect={handleInlineProductSelect} onCancel={cancelSearchLine} onCreateManual={handleCreateManualProduct} />
                     ) : (
@@ -976,8 +990,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" disabled={isLegacyQuote} /></td>
-                  <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" disabled={isLegacyQuote} /></td>
+                  <td className="px-6 py-2"><Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="text-center" disabled={quoteIsHistorical} /></td>
+                  <td className="px-6 py-2"><Input type="number" value={line.price} onChange={e => handleLineChange(index, 'price', e.target.value)} className="text-right" disabled={quoteIsHistorical} /></td>
 
                   {/* IVA Unitario */}
                   <td className="px-6 py-2 text-right text-foreground">
@@ -1001,7 +1015,7 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
                     })()}
                   </td>
                   <td className="px-2 py-2">
-                    <Button variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={isLegacyQuote} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Button variant="ghost" size="icon" onClick={() => removeLine(index)} disabled={quoteIsHistorical} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </td>
@@ -1011,8 +1025,8 @@ const QuoteForm = ({ db, quoteId, onBack }) => {
           </table>
         </div>
         <div className="mt-4 flex items-center gap-4">
-          <Button variant="link" className="p-0 h-auto" onClick={addEmptyLine} disabled={isLegacyQuote}>+ Añadir un producto</Button>
-          <Button variant="link" className="p-0 h-auto" onClick={() => setIsCatalogOpen(true)} disabled={isLegacyQuote}>
+          <Button variant="link" className="p-0 h-auto" onClick={addEmptyLine} disabled={quoteIsHistorical}>+ Añadir un producto</Button>
+          <Button variant="link" className="p-0 h-auto" onClick={() => setIsCatalogOpen(true)} disabled={quoteIsHistorical}>
             Abrir Catálogo
           </Button>
         </div>
