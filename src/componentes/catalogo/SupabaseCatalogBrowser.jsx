@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ChevronLeft, ChevronRight, PackageSearch, Search } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
-import { fetchCatalogProducts } from '@/lib/catalogApi';
+import { fetchCatalogProducts, getCatalogQuotePriceIncludingTax, hasCatalogOffer } from '@/lib/catalogApi';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import { Badge } from '@/ui/badge';
@@ -90,7 +90,11 @@ export default function SupabaseCatalogBrowser() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => (
+          {products.map((product) => {
+            const priceForQuote = getCatalogQuotePriceIncludingTax(product);
+            const isOnOffer = hasCatalogOffer(product);
+
+            return (
             <article key={product.id} className="overflow-hidden rounded-lg border bg-card">
               <div className="aspect-[4/3] bg-muted">
                 {product.imageUrl ? <img src={product.imageUrl} alt={product.imageAltText || product.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sin imagen</div>}
@@ -99,15 +103,17 @@ export default function SupabaseCatalogBrowser() {
                 <p className="line-clamp-2 font-semibold">{product.title}</p>
                 <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
                 {product.vendor && <p className="text-sm text-muted-foreground">{product.vendor}</p>}
-                <p className="text-lg font-bold text-primary">{formatCurrency(product.price)}</p>
-                <p className="text-xs text-muted-foreground">{product.taxable === false ? 'Precio Shopify · Exento' : 'Precio Shopify · IVA incluido'}</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(priceForQuote)}</p>
+                <p className="text-xs text-muted-foreground">{product.taxable === false ? 'Precio CPQ · Exento' : 'Precio CPQ · IVA incluido'}</p>
+                {isOnOffer && <p className="text-xs text-muted-foreground">Oferta Shopify: {formatCurrency(product.price)} · no se usa para cotizar</p>}
                 <div className="flex flex-wrap gap-1">
                   {product.taxable === false && <Badge variant="outline">Exento</Badge>}
                   {product.inventoryTracked && <Badge variant="secondary">Inventario controlado</Badge>}
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -1,5 +1,29 @@
 const CATALOG_ENDPOINT = '/api/catalog-products';
 
+/**
+ * CPQ cotiza al precio regular de Shopify. Cuando un producto está en oferta,
+ * Shopify conserva el precio regular en `compareAtPrice` y el de oferta en
+ * `price`; usamos el primero sólo si realmente es mayor.
+ */
+export function getCatalogQuotePriceIncludingTax(product) {
+  const salePrice = Number(product?.price);
+  const regularPrice = Number(product?.compareAtPrice);
+
+  if (Number.isFinite(regularPrice) && regularPrice > 0
+    && (!Number.isFinite(salePrice) || regularPrice > salePrice)) {
+    return regularPrice;
+  }
+
+  return Number.isFinite(salePrice) ? salePrice : 0;
+}
+
+export function hasCatalogOffer(product) {
+  const salePrice = Number(product?.price);
+  const regularPrice = Number(product?.compareAtPrice);
+  return Number.isFinite(salePrice) && Number.isFinite(regularPrice)
+    && regularPrice > salePrice;
+}
+
 export async function fetchCatalogProducts(user, { q = '', page = 1, pageSize = 30, signal } = {}) {
   if (!user) {
     throw new Error('Debes iniciar sesión para consultar el catálogo.');
@@ -37,10 +61,11 @@ export async function fetchCatalogProducts(user, { q = '', page = 1, pageSize = 
 export function createQuoteLineFromCatalogProduct(product, quantity = 1) {
   const taxable = product.taxable !== false;
   const taxRate = taxable ? 0.19 : 0;
-  // Shopify publica el precio final al cliente con IVA incluido. Las líneas de
-  // CPQ almacenan la base antes de IVA para que PDF, impuestos y totales usen
-  // una sola convención.
-  const unitPriceIncludingTax = Number(product.price) || 0;
+  // Shopify publica el precio final al cliente con IVA incluido. Para CPQ se
+  // privilegia el precio regular (compareAtPrice) sobre el precio de oferta.
+  // La línea almacena la base antes de IVA para que PDF, impuestos y totales
+  // usen una sola convención.
+  const unitPriceIncludingTax = getCatalogQuotePriceIncludingTax(product);
   const unitPriceBeforeTax = taxable
     ? unitPriceIncludingTax / (1 + taxRate)
     : unitPriceIncludingTax;
@@ -57,6 +82,9 @@ export function createQuoteLineFromCatalogProduct(product, quantity = 1) {
     price: unitPriceBeforeTax,
     unitPriceIncludingTax,
     catalogPriceIncludesTax: taxable,
+    catalogPriceSource: hasCatalogOffer(product) ? 'compare_at_price' : 'price',
+    catalogSalePriceIncludingTax: Number(product.price) || 0,
+    catalogCompareAtPriceIncludingTax: Number(product.compareAtPrice) || null,
     taxable,
     taxRate,
     imageUrl: product.imageUrl || null,

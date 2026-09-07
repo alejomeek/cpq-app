@@ -11,6 +11,8 @@ import {
   createQuoteLineFromCatalogProduct,
   createQuoteLineFromManualProduct,
   fetchCatalogProducts,
+  getCatalogQuotePriceIncludingTax,
+  hasCatalogOffer,
   normalizeManualProduct,
 } from '@/lib/catalogApi';
 import { Button } from '@/ui/button.jsx';
@@ -139,14 +141,21 @@ const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
         </div>
         {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
         <div className="flex-grow overflow-y-auto grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 pr-4">
-          {loading ? <p className="col-span-full py-12 text-center text-muted-foreground">Cargando productos...</p> : products.map(product => (
+          {loading ? <p className="col-span-full py-12 text-center text-muted-foreground">Cargando productos...</p> : products.map(product => {
+            const priceForQuote = product.source === 'shopify'
+              ? getCatalogQuotePriceIncludingTax(product)
+              : Number(product.price) || 0;
+            const isOnOffer = product.source === 'shopify' && hasCatalogOffer(product);
+
+            return (
             <div key={`${product.source}:${product.id}`} className="bg-muted p-4 rounded-lg flex flex-col justify-between shadow-lg text-muted-foreground">
               <div className="flex-grow">
                 <h3 className="font-bold text-foreground">{product.title}</h3>
                 <p className="text-sm mt-1">SKU: {product.sku || 'N/A'}</p>
                 <p className="text-xs font-medium mt-1">{product.source === 'manual' ? 'Producto manual' : 'Shopify sincronizado'}</p>
-                <p className="text-xl font-semibold text-primary mt-2">${(product.price || 0).toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{product.source === 'shopify' ? (product.taxable === false ? 'Precio Shopify · Exento' : 'Precio Shopify · IVA incluido') : 'Precio manual antes de IVA'}</p>
+                <p className="text-xl font-semibold text-primary mt-2">${priceForQuote.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">{product.source === 'shopify' ? (product.taxable === false ? 'Precio CPQ · Exento' : 'Precio CPQ · IVA incluido') : 'Precio manual antes de IVA'}</p>
+                {isOnOffer && <p className="mt-1 text-xs text-muted-foreground">Oferta Shopify: ${(Number(product.price) || 0).toFixed(0)} · no se usa para cotizar</p>}
               </div>
               <div className="mt-4">
                 {cart[`${product.source}:${product.id}`]?.quantity > 0 ? (
@@ -158,7 +167,8 @@ const ProductCatalogModal = ({ db, onAddToCart, onClose }) => {
                 ) : (<Button onClick={() => handleQuantityChange(product, 1)} className="w-full flex items-center justify-center gap-2"> <ShoppingCart className="w-5 h-5" /> Añadir </Button>)}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
         <div className="pt-6 border-t"><Button onClick={() => onAddToCart(Object.values(cart))} className="w-full"> Volver a la cotización </Button></div>
       </div>
